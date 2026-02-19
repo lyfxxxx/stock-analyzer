@@ -19,8 +19,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import * as echarts from 'echarts'
+import { init, use, graphic } from 'echarts/core'
+import { BarChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+import type { ECharts, EChartsOption } from 'echarts/core'
 import type { YearlyData } from '@/types/stock'
+
+use([BarChart, GridComponent, TooltipComponent, CanvasRenderer])
 
 type CurrencyType = 'HKD' | 'CNY' | 'USD'
 
@@ -33,7 +39,7 @@ const props = defineProps<{
 }>()
 
 const chartRef = ref<HTMLElement | null>(null)
-let chart: echarts.ECharts | null = null
+let chart: ECharts | null = null
 
 const defaultRates: Record<string, number> = { HKD: 1, USD: 7.75, CNY: 1.10 }
 const currentCurrency = ref<CurrencyType>('HKD')
@@ -64,7 +70,7 @@ function initChart() {
   if (!chartRef.value) return
   
   updateCurrency()
-  chart = echarts.init(chartRef.value, 'dark')
+  chart = init(chartRef.value, 'dark')
   updateChart()
   
   const resizeHandler = () => chart?.resize()
@@ -89,17 +95,17 @@ function updateChart() {
   
   const currencySymbol = getCurrencySymbol()
   
-  const actualColor = new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+  const actualColor = new graphic.LinearGradient(0, 0, 0, 1, [
     { offset: 0, color: '#f59e0b' },
     { offset: 1, color: '#d97706' }
   ])
-  
-  const projectedColor = new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+
+  const projectedColor = new graphic.LinearGradient(0, 0, 0, 1, [
     { offset: 0, color: '#a78bfa' },
     { offset: 1, color: '#7c3aed' }
   ])
   
-  const option: echarts.EChartsOption = {
+  const option: EChartsOption = {
     backgroundColor: 'transparent',
     grid: {
       left: '3%',
