@@ -108,29 +108,66 @@
 
         <!-- API Mode: Stock Info (After Fetch) -->
         <div v-if="dataSourceMode === 'api' && stockInfoFromApi" class="form-section api-loaded-section">
-          <h2>股票信息</h2>
-          
+          <div class="section-header">
+            <h2>股票信息</h2>
+            <button
+              v-if="!isEditMode"
+              @click="enableEditMode"
+              class="edit-code-btn"
+              :disabled="fetchLoading"
+            >
+              修改
+            </button>
+          </div>
+
+          <div v-if="isEditingCode" class="edit-mode-notice">
+            <p>正在修改股票代码，当前预览数据将被清除</p>
+          </div>
+
           <div class="form-row">
             <div class="form-group">
               <label>股票代码</label>
               <input
                 v-model="form.code"
                 type="text"
-                class="form-input disabled"
-                disabled
+                class="form-input"
+                :class="{ 'disabled': !isEditingCode, 'input-error': !codeValidation.isValid }"
+                :disabled="!isEditingCode"
+                :placeholder="form.market === 'HK' ? '如: 00700' : '如: 600519'"
+                @blur="validateCodeOnBlur"
               >
+              <span v-if="isEditingCode && !codeValidation.isValid" class="error-message">{{ codeValidation.message }}</span>
             </div>
 
             <div class="form-group">
               <label>市场</label>
-              <select v-model="form.market" class="form-select disabled" disabled>
+              <select v-model="form.market" class="form-select" :class="{ 'disabled': !isEditingCode }" :disabled="!isEditingCode" @change="onMarketChange">
                 <option value="HK">港股</option>
                 <option value="A">A股</option>
               </select>
             </div>
           </div>
 
-          <div class="api-data-display">
+          <div v-if="isEditingCode" class="edit-actions">
+            <button
+              @click="cancelEditMode"
+              class="cancel-btn"
+              :disabled="fetchLoading"
+            >
+              取消
+            </button>
+            <button
+              @click="fetchFinancialData"
+              :disabled="fetchLoading || !canFetch"
+              class="fetch-data-button"
+              :class="{ 'loading': fetchLoading }"
+            >
+              <span v-if="fetchLoading" class="btn-spinner"></span>
+              <span v-else>重新获取数据</span>
+            </button>
+          </div>
+
+          <div v-else class="api-data-display">
             <div class="data-item">
               <span class="data-label">股票名称</span>
               <span class="data-value">{{ form.name }} <span class="check-mark">✓</span></span>
@@ -360,6 +397,15 @@ const fetchError = ref<string | null>(null)
 const retryCount = ref(0)
 const MAX_RETRIES = 1
 const forcedManualMode = ref(false)
+const isEditingCode = ref(false)
+
+// Saved state for canceling edit
+let savedFormState = {
+  code: '',
+  name: '',
+  market: 'HK' as 'HK' | 'A',
+  marketCap: 0
+}
 
 // Generate State
 const generating = ref(false)
@@ -571,6 +617,13 @@ async function fetchFinancialData() {
       form.marketCap = stockInfo.marketCap
       stockInfoFromApi.value = true
       validateForm()
+      // 更新保存的状态
+      savedFormState = {
+        code: form.code,
+        name: form.name,
+        market: form.market,
+        marketCap: form.marketCap
+      }
     }
 
     // Step 2: Get financial report data
@@ -584,6 +637,15 @@ async function fetchFinancialData() {
         market: form.market,
         marketCap: form.marketCap,
         ...reportData
+      }
+      // 成功获取数据后，退出编辑模式并更新保存的状态
+      isEditingCode.value = false
+      // 更新保存的状态为当前最新值
+      savedFormState = {
+        code: form.code,
+        name: form.name,
+        market: form.market,
+        marketCap: form.marketCap
       }
     }
   } catch (err) {
@@ -603,10 +665,43 @@ async function retryFetch() {
   retryCount.value++
   await fetchFinancialData()
 
+  // 只有在重试次数超过最大限制且仍然有错误时，才强制切换到手动模式
+  // 但不再自动切换，让用户自己选择
   if (fetchError.value && retryCount.value >= MAX_RETRIES) {
-    forcedManualMode.value = true
-    dataSourceMode.value = 'manual'
+    // 记录已达到最大重试次数，但不自动切换模式
+    console.log(`已达到最大重试次数 (${MAX_RETRIES})，请手动选择切换到手动模式`)
   }
+}
+
+function enableEditMode() {
+  // 保存当前状态以便取消时恢复
+  savedFormState = {
+    code: form.code,
+    name: form.name,
+    market: form.market,
+    marketCap: form.marketCap
+  }
+
+  // 清除预览数据，进入编辑模式
+  previewData.value = null
+  isEditingCode.value = true
+  stockInfoFromApi.value = false
+  resetFetchState()
+}
+
+function cancelEditMode() {
+  // 恢复之前保存的状态
+  form.code = savedFormState.code
+  form.name = savedFormState.name
+  form.market = savedFormState.market
+  form.marketCap = savedFormState.marketCap
+
+  // 退出编辑模式
+  isEditingCode.value = false
+  stockInfoFromApi.value = true
+
+  // 重新验证代码
+  validateCodeOnBlur()
 }
 
 function switchToManual() {
@@ -935,6 +1030,83 @@ function formatCurrency(value: number | undefined): string {
   background: var(--bg-secondary);
   color: var(--text-secondary);
   opacity: 0.6;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.edit-code-btn {
+  padding: 6px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.edit-code-btn:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.edit-code-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.edit-mode-notice {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 8px;
+}
+
+.edit-mode-notice p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--primary-color);
+}
+
+.edit-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+.cancel-btn {
+  padding: 12px 24px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+}
+
+.cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .api-loaded-section {
