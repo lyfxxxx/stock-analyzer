@@ -23,7 +23,7 @@ import { init, use, graphic } from 'echarts/core'
 import { BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
-import type { ECharts, EChartsOption } from 'echarts/core'
+import type { ECharts, EChartsCoreOption } from 'echarts/core'
 import type { YearlyData } from '@/types/stock'
 
 use([BarChart, GridComponent, TooltipComponent, CanvasRenderer])
@@ -105,7 +105,7 @@ function updateChart() {
     { offset: 1, color: '#7c3aed' }
   ])
   
-  const option: EChartsOption = {
+  const option: EChartsCoreOption = {
     backgroundColor: 'transparent',
     grid: {
       left: '3%',
