@@ -128,6 +128,7 @@ interface SearchItem {
 const JYS_CODE_MAP: Record<string, string> = {
   '116': 'HK',  // 港股
   '1': 'SH',    // 上海A股
+  '2': 'SH',    // 上海A股（部分股票返回2）
   '6': 'SZ',    // 深圳A股
 }
 
@@ -142,7 +143,7 @@ function mapMarketCode(mktNum: string, classify: string, jys: string): { market:
   if (mktNum === '0' || jys === 'SZ' || jys === '6') {
     return { market: 'A', marketName: 'A股(深)' }
   }
-  if (mktNum === '1' || jys === 'SH' || jys === '1') {
+  if (mktNum === '1' || jys === 'SH' || jys === '1' || jys === '2') {
     return { market: 'A', marketName: 'A股(沪)' }
   }
   return { market: 'A', marketName: 'A股' }
