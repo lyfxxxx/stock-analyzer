@@ -81,16 +81,6 @@
             </div>
           </div>
 
-          <button
-            @click="fetchFinancialData"
-            :disabled="fetchLoading || !canFetch"
-            class="fetch-data-button large"
-            :class="{ 'loading': fetchLoading }"
-          >
-            <span v-if="fetchLoading" class="btn-spinner"></span>
-            <span v-else>📊 获取财报数据</span>
-          </button>
-
           <!-- Search Modal -->
           <div v-if="showSearchModal" class="modal-overlay" @click.self="closeSearchModal">
             <div class="modal-content">
@@ -672,13 +662,15 @@ async function performSearch() {
   await stockStore.searchStocks(searchQuery.value.trim())
 }
 
-function selectSearchResult(result: typeof stockStore.searchResults[0]) {
+async function selectSearchResult(result: typeof stockStore.searchResults[0]) {
   form.code = result.code
   form.market = result.market
   form.name = result.name
   codeValidation.value = { isValid: true }
   nameValidation.value = { isValid: true }
   closeSearchModal()
+  
+  await fetchFinancialData()
 }
 
 function setMode(mode: DataSourceMode) {
