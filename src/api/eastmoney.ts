@@ -25,81 +25,55 @@ export async function fetchEastMoneyStockInfo(code: string, market: 'HK' | 'A'):
     )
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const data = await response.json()
-    
-    if (!data.data) {
       return null
     }
 
-    const stockData = data.data
-    const name = stockData.f58
-    const marketCapRaw = parseFloat(stockData.f116) || 0
-    let marketCap = marketCapRaw / 100000000 // Convert to 亿元
+    const result = await response.json()
 
-    // For A-shares, convert from CNY to HKD
-    // For HK stocks, f116 is already in HKD
-    if (market === 'A') {
-      const { rates } = await fetchExchangeRates()
-      const cnyToHkd = rates['CNY'] || 1.10
-      marketCap = marketCap * cnyToHkd
+    if (result.data) {
+      return {
+        name: result.data.f58,
+        code: result.data.f57,
+        market,
+        marketCap: parseFloat(result.data.f116) / 100000000
+      }
     }
 
-    return {
-      name,
-      code,
-      market,
-      marketCap
-    }
+    return null
   } catch (error) {
-    console.error('EastMoney API error:', error)
+    console.error('Failed to fetch stock info:', error)
     return null
   }
 }
 
 export async function testEastMoneyAPI(): Promise<ApiTestResult> {
   const start = performance.now()
+  
   try {
-    // Test with Tencent (00700)
     const response = await fetch(
-      'https://push2.eastmoney.com/api/qt/stock/get?secid=116.00700&fields=f57,f58,f116',
+      'https://push2.eastmoney.com/api/qt/stock/get?secid=116.00700&fields=f57,f58',
       {
         method: 'GET',
-        mode: 'cors',
-        headers: {
-          'Accept': 'application/json'
-        }
+        mode: 'cors'
       }
     )
-
+    
     const latency = Math.round(performance.now() - start)
-
-    if (!response.ok) {
-      return {
-        source: '东方财富',
-        status: 'error',
-        message: `HTTP ${response.status}`,
-        latency
-      }
-    }
-
-    const data = await response.json()
-    if (data.data && data.data.f58) {
+    
+    if (response.ok) {
       return {
         source: '东方财富',
         status: 'success',
         message: '连接正常',
         latency
       }
-    }
-
-    return {
-      source: '东方财富',
-      status: 'error',
-      message: '数据格式异常',
-      latency
+    } else {
+      return {
+        source: '东方财富',
+        status: 'error',
+        message: `HTTP ${response.status}`,
+        latency
+      }
     }
   } catch (error) {
     return {
@@ -149,6 +123,37 @@ function mapMarketCode(mktNum: string, classify: string, jys: string): { market:
   return { market: 'A', marketName: 'A股' }
 }
 
+function jsonp<T>(url: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const callbackName = 'jsonp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+    
+    const timeout = setTimeout(() => {
+      cleanup()
+      reject(new Error('JSONP request timeout'))
+    }, 10000)
+    
+    const cleanup = () => {
+      if (timeout) clearTimeout(timeout)
+      delete (window as any)[callbackName]
+      if (script.parentNode) script.remove()
+    }
+    
+    ;(window as any)[callbackName] = (data: T) => {
+      cleanup()
+      resolve(data)
+    }
+    
+    const script = document.createElement('script')
+    script.src = url + '&cb=' + callbackName
+    script.onerror = () => {
+      cleanup()
+      reject(new Error('JSONP request failed'))
+    }
+    
+    document.head.appendChild(script)
+  })
+}
+
 export async function searchStocksByName(
   query: string,
   market?: 'HK' | 'A'
@@ -158,25 +163,9 @@ export async function searchStocksByName(
   }
 
   try {
-    const isDev = import.meta.env.DEV
+    const searchUrl = `https://searchapi.eastmoney.com/api/suggest/get?input=${encodeURIComponent(query)}&type=14&count=10`
     
-    const WORKER_URL = 'https://stock-search-proxy.894624801.workers.dev'
-    
-    const searchUrl = isDev
-      ? `/api/search?input=${encodeURIComponent(query)}&type=14&count=10`
-      : `${WORKER_URL}/api/search?input=${encodeURIComponent(query)}&type=14&count=10`
-    
-    const response = await fetch(searchUrl, {
-      method: 'GET',
-      mode: 'cors',
-      headers: { 'Accept': 'application/json' }
-    })
-
-    if (!response.ok) {
-      return []
-    }
-
-    const data: SearchApiResponse = await response.json()
+    const data = await jsonp<SearchApiResponse>(searchUrl)
     
     if (!data.QuotationCodeTable?.Data) {
       return []
