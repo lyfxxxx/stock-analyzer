@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { StockData, StockAnalysisResult, ApiTestResult } from '@/types/stock'
+import type { StockData, StockAnalysisResult, ApiTestResult, StockSearchResult } from '@/types/stock'
 import { stockDB } from '@/db'
-import { fetchEastMoneyStockInfo, testEastMoneyAPI } from '@/api/eastmoney'
+import { fetchEastMoneyStockInfo, testEastMoneyAPI, searchStocksByName } from '@/api/eastmoney'
 import { fetchAStockFinancialReport } from '@/api/financialReportA'
 import { fetchHKStockFinancialReport } from '@/api/financialReportHK'
 import { calculateNetCash, calculateFreeCashFlow, calculateValuations } from '@/utils/calculator'
@@ -14,6 +14,9 @@ export const useStockStore = defineStore('stock', () => {
   const error = ref<string | null>(null)
   const apiTestResults = ref<ApiTestResult[]>([])
   const isApiAvailable = ref(true)
+  
+  const searchResults = ref<StockSearchResult[]>([])
+  const isSearching = ref(false)
 
   const sortedStocks = computed(() => {
     return [...stocks.value].sort((a, b) => b.updatedAt - a.updatedAt)
@@ -273,12 +276,31 @@ export const useStockStore = defineStore('stock', () => {
     }
   }
 
+  async function searchStocks(query: string, market?: 'HK' | 'A') {
+    isSearching.value = true
+    searchResults.value = []
+    try {
+      searchResults.value = await searchStocksByName(query, market)
+    } catch (err) {
+      console.error('Search stocks error:', err)
+      searchResults.value = []
+    } finally {
+      isSearching.value = false
+    }
+  }
+
+  function clearSearchResults() {
+    searchResults.value = []
+  }
+
   return {
     stocks,
     loading,
     error,
     apiTestResults,
     isApiAvailable,
+    searchResults,
+    isSearching,
     
     sortedStocks,
     stockCount,
@@ -293,6 +315,8 @@ export const useStockStore = defineStore('stock', () => {
     clearError,
     updateStockMarketCap,
     updateStock,
-    recalculateStock
+    recalculateStock,
+    searchStocks,
+    clearSearchResults
   }
 })

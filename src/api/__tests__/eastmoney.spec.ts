@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { fetchEastMoneyStockInfo, testEastMoneyAPI } from '../eastmoney'
+import { fetchEastMoneyStockInfo, testEastMoneyAPI, searchStocksByName } from '../eastmoney'
 
 describe('EastMoney API', () => {
   const mockFetch = vi.fn()
@@ -252,6 +252,110 @@ describe('EastMoney API', () => {
       const result = await testEastMoneyAPI()
 
       expect(result.latency).toBeGreaterThanOrEqual(50)
+    })
+  })
+
+  describe('searchStocksByName', () => {
+    it('should return empty array for empty query', async () => {
+      const result = await searchStocksByName('')
+      expect(result).toEqual([])
+    })
+
+    it('should return empty array for whitespace query', async () => {
+      const result = await searchStocksByName('   ')
+      expect(result).toEqual([])
+    })
+
+    it('should search stocks and return results for HK market', async () => {
+      const mockSearchResponse = {
+        QuotationCodeTable: {
+          Data: [
+            { Code: '00700', Name: '腾讯控股', MktNum: '116', Classify: 'HK', JYS: 'HK' },
+            { Code: '09988', Name: '腾讯音乐', MktNum: '116', Classify: 'HK', JYS: 'HK' }
+          ]
+        }
+      }
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockSearchResponse)
+      })
+
+      const result = await searchStocksByName('腾讯', 'HK')
+
+      expect(result).toHaveLength(2)
+      expect(result[0].code).toBe('00700')
+      expect(result[0].name).toBe('腾讯控股')
+      expect(result[0].fullCode).toBe('00700.HK')
+      expect(result[0].market).toBe('HK')
+      expect(result[0].marketName).toBe('港股')
+    })
+
+    it('should search stocks and return results for A market', async () => {
+      const mockSearchResponse = {
+        QuotationCodeTable: {
+          Data: [
+            { Code: '600519', Name: '贵州茅台', MktNum: '1', Classify: 'Stock', JYS: 'SH' },
+            { Code: '000858', Name: '五粮液', MktNum: '0', Classify: 'Stock', JYS: 'SZ' }
+          ]
+        }
+      }
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockSearchResponse)
+      })
+
+      const result = await searchStocksByName('茅台')
+
+      expect(result).toHaveLength(2)
+      expect(result[0].code).toBe('600519')
+      expect(result[0].fullCode).toBe('600519.SH')
+      expect(result[0].market).toBe('A')
+      expect(result[0].marketName).toBe('A股(沪)')
+      expect(result[1].marketName).toBe('A股(深)')
+    })
+
+    it('should filter by market when specified', async () => {
+      const mockSearchResponse = {
+        QuotationCodeTable: {
+          Data: [
+            { Code: '00700', Name: '腾讯控股', MktNum: '116', Classify: 'HK', JYS: 'HK' },
+            { Code: '600519', Name: '贵州茅台', MktNum: '1', Classify: 'Stock', JYS: 'SH' }
+          ]
+        }
+      }
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockSearchResponse)
+      })
+
+      const result = await searchStocksByName('腾讯', 'HK')
+
+      expect(result).toHaveLength(1)
+      expect(result[0].code).toBe('00700')
+    })
+
+    it('should return empty array when no results found', async () => {
+      const mockSearchResponse = {
+        QuotationCodeTable: {
+          Data: []
+        }
+      }
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockSearchResponse)
+      })
+
+      const result = await searchStocksByName('xyznonexistent')
+
+      expect(result).toEqual([])
+    })
+
+    it('should handle API error gracefully', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('Network error'))
+
+      const result = await searchStocksByName('腾讯')
+
+      expect(result).toEqual([])
     })
   })
 })

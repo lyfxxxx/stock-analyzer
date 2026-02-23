@@ -470,6 +470,163 @@ describe('financialReportHK', () => {
       expect(result.data?.longTermDebt[0]).toBe(0)
       expect(result.data?.capitalExpenditure[0]).toBe(0)
     })
+
+    it('should sum capital expenditure from multiple fields (005005 + 005997 + 005007)', async () => {
+      const mockBalanceSheet = {
+        version: '1.0',
+        success: true,
+        result: {
+          pages: 1,
+          data: [
+            { SECUCODE: '00883.HK', SECURITY_CODE: '00883', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '004002010', STD_ITEM_NAME: '现金及等价物', AMOUNT: 1000000000 },
+          ],
+          count: 1,
+        },
+      }
+
+      const mockIncomeStatement = {
+        version: '1.0',
+        success: true,
+        result: {
+          pages: 1,
+          data: [
+            { SECUCODE: '00883.HK', SECURITY_CODE: '00883', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '004025002', STD_ITEM_NAME: '股东应占溢利', AMOUNT: 1000000000 },
+          ],
+          count: 1,
+        },
+      }
+
+      const mockCashFlow = {
+        version: '1.0',
+        success: true,
+        result: {
+          pages: 1,
+          data: [
+            { SECUCODE: '00883.HK', SECURITY_CODE: '00883', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '003999', STD_ITEM_NAME: '经营业务现金净额', AMOUNT: 2000000000 },
+            { SECUCODE: '00883.HK', SECURITY_CODE: '00883', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '005005', STD_ITEM_NAME: '购建固定资产', AMOUNT: 500000000 },
+            { SECUCODE: '00883.HK', SECURITY_CODE: '00883', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '005997', STD_ITEM_NAME: '投资业务其他项目', AMOUNT: 300000000 },
+            { SECUCODE: '00883.HK', SECURITY_CODE: '00883', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '005007', STD_ITEM_NAME: '购建无形资产及其他资产', AMOUNT: 200000000 },
+          ],
+          count: 4,
+        },
+      }
+
+      mockFetch
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockBalanceSheet) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockIncomeStatement) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockCashFlow) })
+
+      const result = await fetchHKStockFinancialReport('00883')
+
+      expect(result.data).not.toBeNull()
+      expect(result.data?.years).toEqual([2024])
+      
+      const cnyToHkd = 1.10
+      const expectedCapEx = -((500000000 + 300000000 + 200000000) / 100000000) * cnyToHkd
+      expect(result.data?.capitalExpenditure[0]).toBeCloseTo(expectedCapEx, 1)
+    })
+
+    it('should handle 005997 (investment other) field correctly', async () => {
+      const mockBalanceSheet = {
+        version: '1.0',
+        success: true,
+        result: {
+          pages: 1,
+          data: [
+            { SECUCODE: '00883.HK', SECURITY_CODE: '00883', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '004002010', STD_ITEM_NAME: '现金及等价物', AMOUNT: 1000000000 },
+          ],
+          count: 1,
+        },
+      }
+
+      const mockIncomeStatement = {
+        version: '1.0',
+        success: true,
+        result: {
+          pages: 1,
+          data: [
+            { SECUCODE: '00883.HK', SECURITY_CODE: '00883', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '004025002', STD_ITEM_NAME: '股东应占溢利', AMOUNT: 1000000000 },
+          ],
+          count: 1,
+        },
+      }
+
+      const mockCashFlow = {
+        version: '1.0',
+        success: true,
+        result: {
+          pages: 1,
+          data: [
+            { SECUCODE: '00883.HK', SECURITY_CODE: '00883', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '003999', STD_ITEM_NAME: '经营业务现金净额', AMOUNT: 2000000000 },
+            { SECUCODE: '00883.HK', SECURITY_CODE: '00883', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '005997', STD_ITEM_NAME: '投资业务其他项目', AMOUNT: 400000000 },
+          ],
+          count: 2,
+        },
+      }
+
+      mockFetch
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockBalanceSheet) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockIncomeStatement) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockCashFlow) })
+
+      const result = await fetchHKStockFinancialReport('00883')
+
+      expect(result.data).not.toBeNull()
+      const cnyToHkd = 1.10
+      const expectedCapEx = -(400000000 / 100000000) * cnyToHkd
+      expect(result.data?.capitalExpenditure[0]).toBeCloseTo(expectedCapEx, 1)
+    })
+
+    it('should handle 005007 (intangible assets) field correctly', async () => {
+      const mockBalanceSheet = {
+        version: '1.0',
+        success: true,
+        result: {
+          pages: 1,
+          data: [
+            { SECUCODE: '00883.HK', SECURITY_CODE: '00883', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '004002010', STD_ITEM_NAME: '现金及等价物', AMOUNT: 1000000000 },
+          ],
+          count: 1,
+        },
+      }
+
+      const mockIncomeStatement = {
+        version: '1.0',
+        success: true,
+        result: {
+          pages: 1,
+          data: [
+            { SECUCODE: '00883.HK', SECURITY_CODE: '00883', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '004025002', STD_ITEM_NAME: '股东应占溢利', AMOUNT: 1000000000 },
+          ],
+          count: 1,
+        },
+      }
+
+      const mockCashFlow = {
+        version: '1.0',
+        success: true,
+        result: {
+          pages: 1,
+          data: [
+            { SECUCODE: '00883.HK', SECURITY_CODE: '00883', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '003999', STD_ITEM_NAME: '经营业务现金净额', AMOUNT: 2000000000 },
+            { SECUCODE: '00883.HK', SECURITY_CODE: '00883', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '005007', STD_ITEM_NAME: '购建无形资产及其他资产', AMOUNT: 150000000 },
+          ],
+          count: 2,
+        },
+      }
+
+      mockFetch
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockBalanceSheet) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockIncomeStatement) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockCashFlow) })
+
+      const result = await fetchHKStockFinancialReport('00883')
+
+      expect(result.data).not.toBeNull()
+      const cnyToHkd = 1.10
+      const expectedCapEx = -(150000000 / 100000000) * cnyToHkd
+      expect(result.data?.capitalExpenditure[0]).toBeCloseTo(expectedCapEx, 1)
+    })
   })
 })
 

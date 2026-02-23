@@ -16,6 +16,14 @@ import {
   isAnnualReport,
   type SeasonalRatios,
   type QuarterlyData,
+  type FlexibleYearlyData,
+  type FlexibleCurrentData,
+  calculateSemiAnnualTTM,
+  calculateHistoryTTM,
+  calculateCurrentTTM,
+  predictWithTTM,
+  type TTMData,
+  type ReportPeriodType,
 } from '@/utils/calculator'
 
 const BALANCE_CODES = {
@@ -35,6 +43,8 @@ const INCOME_CODES = {
 const CASH_FLOW_CODES = {
   OPERATING_CASH_FLOW: '003999',
   CAPITAL_EXPENDITURE: '005005',
+  INVESTMENT_OTHER: '005997',
+  INTANGIBLE_ASSETS: '005007',
 } as const
 
 const BASE_URL = 'https://datacenter.eastmoney.com/securities/api/data/v1/get'
@@ -278,7 +288,9 @@ function parseCashFlowByYearWithReportType(
         yearData.operatingCashFlow = amount
         break
       case CASH_FLOW_CODES.CAPITAL_EXPENDITURE:
-        yearData.capitalExpenditure = -Math.abs(amount)
+      case CASH_FLOW_CODES.INVESTMENT_OTHER:
+      case CASH_FLOW_CODES.INTANGIBLE_ASSETS:
+        yearData.capitalExpenditure += -Math.abs(amount)
         break
     }
   }
@@ -406,10 +418,39 @@ export async function fetchHKStockFinancialReport(
       }
     }
 
+    // ====== 日志：API返回的原始数据 ======
+    console.log('========== 财务数据获取开始 ==========')
+    console.log(`股票代码: ${code}`)
+    console.log(`资产负债表记录数: ${balanceSheet.length}`)
+    console.log(`利润表记录数: ${incomeStatement.length}`)
+    console.log(`现金流量表记录数: ${cashFlow.length}`)
+
+    // 输出利润表的报告日期分布
+    const incomeReportTypes = new Map<string, number>()
+    for (const item of incomeStatement) {
+      const type = getReportType(item.REPORT_DATE)
+      incomeReportTypes.set(type, (incomeReportTypes.get(type) || 0) + 1)
+    }
+    console.log('利润表报告类型分布:', Object.fromEntries(incomeReportTypes))
+
+    // 输出现金流量表的报告日期分布
+    const cfReportTypes = new Map<string, number>()
+    for (const item of cashFlow) {
+      const type = getReportType(item.REPORT_DATE)
+      cfReportTypes.set(type, (cfReportTypes.get(type) || 0) + 1)
+    }
+    console.log('现金流量表报告类型分布:', Object.fromEntries(cfReportTypes))
+
     const { rates } = await fetchExchangeRates()
     const toHKD = rates['CNY'] || 1.10
+    console.log(`汇率 CNY -> HKD: ${toHKD}`)
 
     const { profitRatios, cashFlowRatios } = calculateSeasonalRatiosFromData(incomeStatement, cashFlow)
+
+    // ====== 日志：季节性比例 ======
+    console.log('========== 季节性比例计算结果 ==========')
+    console.log('净利润季节性比例:', profitRatios)
+    console.log('现金流季节性比例:', cashFlowRatios)
 
     const allItems = [...balanceSheet, ...incomeStatement, ...cashFlow]
     const reportInfoByYear = getLatestReportInfoByYear(allItems)
@@ -424,6 +465,122 @@ export async function fetchHKStockFinancialReport(
     cashFlowByYear.forEach((_, year) => allYears.add(year))
 
     const sortedYears = Array.from(allYears).sort((a, b) => b - a)
+
+    // ====== 收集历史期间明细数据（用于TTM预测算法） ======
+    // 港股只有 H1 和 Annual，使用 h1 和 annual 作为 key
+    const periodDataByYear = new Map<number, { 
+      profit: { h1?: number; annual?: number }, 
+      cf: { h1?: number; annual?: number } 
+    }>()
+
+    // 收集利润表数据 - 只收集股东利润 (STD_ITEM_CODE = 004025002)
+    for (const item of incomeStatement) {
+      if (item.STD_ITEM_CODE !== INCOME_CODES.SHAREHOLDER_PROFIT) continue
+      
+      const year = extractYearFromReportDate(item.REPORT_DATE)
+      const type = getReportType(item.REPORT_DATE)
+      const value = toHundredMillion(item.AMOUNT)
+
+      if (!periodDataByYear.has(year)) {
+        periodDataByYear.set(year, { profit: {}, cf: {} })
+      }
+      const data = periodDataByYear.get(year)!
+
+      if (type === 'H1') data.profit.h1 = value
+      else if (type === 'annual') data.profit.annual = value
+    }
+
+    // 收集现金流量表数据 - 只收集运营现金流 (STD_ITEM_CODE = 003999)
+    for (const item of cashFlow) {
+      if (item.STD_ITEM_CODE !== CASH_FLOW_CODES.OPERATING_CASH_FLOW) continue
+      
+      const year = extractYearFromReportDate(item.REPORT_DATE)
+      const type = getReportType(item.REPORT_DATE)
+      const value = toHundredMillion(item.AMOUNT)
+
+      if (!periodDataByYear.has(year)) {
+        periodDataByYear.set(year, { profit: {}, cf: {} })
+      }
+      const data = periodDataByYear.get(year)!
+
+      if (type === 'H1') data.cf.h1 = value
+      else if (type === 'annual') data.cf.annual = value
+    }
+
+    // 构建TTM算法需要的历史数据（需要h1和annual）
+    const ttmHistoryProfit: FlexibleYearlyData[] = []
+    const ttmHistoryCF: FlexibleYearlyData[] = []
+
+    for (const [year, data] of periodDataByYear) {
+      if (data.profit.h1 !== undefined && data.profit.annual !== undefined) {
+        ttmHistoryProfit.push({
+          year,
+          h1: data.profit.h1,
+          annual: data.profit.annual
+        })
+      }
+      if (data.cf.h1 !== undefined && data.cf.annual !== undefined) {
+        ttmHistoryCF.push({
+          year,
+          h1: data.cf.h1,
+          annual: data.cf.annual
+        })
+      }
+    }
+
+    // 按年份排序（从旧到新）
+    ttmHistoryProfit.sort((a, b) => a.year - b.year)
+    ttmHistoryCF.sort((a, b) => a.year - b.year)
+
+    console.log('历史H1+Annual净利润数据(用于TTM算法):', ttmHistoryProfit.slice(-3))
+    console.log('历史H1+Annual现金流数据(用于TTM算法):', ttmHistoryCF.slice(-3))
+
+    // ====== 计算历史TTM数据（港股半年度模式） ======
+    const reportType: ReportPeriodType = 'semi'
+    const profitTTMHistory = calculateHistoryTTM(ttmHistoryProfit, reportType)
+    const cfTTMHistory = calculateHistoryTTM(ttmHistoryCF, reportType)
+
+    console.log('历史净利润TTM数据:', profitTTMHistory.slice(-3))
+    console.log('历史现金流TTM数据:', cfTTMHistory.slice(-3))
+
+    // ====== 计算当前TTM ======
+    const currentYear = sortedYears[0] || new Date().getFullYear()
+    const currentYearData = periodDataByYear.get(currentYear)
+    const prevYearData = periodDataByYear.get(currentYear - 1)
+
+    let currentProfitTTM: number | null = null
+    let currentCFTTM: number | null = null
+
+    if (currentYearData && prevYearData) {
+      // 计算净利润TTM
+      const profitTTMResult = calculateCurrentTTM(
+        { year: currentYear - 1, h1: prevYearData.profit.h1, annual: prevYearData.profit.annual },
+        { h1: currentYearData.profit.h1 },
+        reportType
+      )
+      if (profitTTMResult) {
+        currentProfitTTM = profitTTMResult.ttm
+        console.log(`当前净利润TTM: ${currentProfitTTM} (使用${profitTTMResult.usedReportType}数据)`)
+      }
+
+      // 计算现金流TTM
+      const cfTTMResult = calculateCurrentTTM(
+        { year: currentYear - 1, h1: prevYearData.cf.h1, annual: prevYearData.cf.annual },
+        { h1: currentYearData.cf.h1 },
+        reportType
+      )
+      if (cfTTMResult) {
+        currentCFTTM = cfTTMResult.ttm
+        console.log(`当前现金流TTM: ${currentCFTTM} (使用${cfTTMResult.usedReportType}数据)`)
+      }
+    }
+
+    // ====== 使用TTM算法进行预测 ======
+    const profitTTMPrediction = predictWithTTM(profitTTMHistory)
+    const cfTTMPrediction = predictWithTTM(cfTTMHistory)
+
+    console.log('TTM净利润预测:', profitTTMPrediction)
+    console.log('TTM现金流预测:', cfTTMPrediction)
 
     const years: number[] = []
     const netProfits: number[] = []
@@ -444,8 +601,6 @@ export async function fetchHKStockFinancialReport(
         continue
       }
 
-      // Only income statement and cash flow statement need annualization
-      // Balance sheet data is a point-in-time value, not projected
       const isYearProjected = !isAnnualReport(income.reportDate) ||
                               !isAnnualReport(cf.reportDate)
 
@@ -453,14 +608,39 @@ export async function fetchHKStockFinancialReport(
       let operatingCFRaw = cf.operatingCashFlow
       let capExRaw = cf.capitalExpenditure
 
+      console.log(`========== ${year}年度预测计算 ==========`)
+      console.log(`报告类型: ${income.reportType}, ${cf.reportType}`)
+      console.log(`原始净利润: ${netProfitRaw}, 原始运营现金流: ${operatingCFRaw}, 原始资本开支: ${capExRaw}`)
+
+      // 对于预测年份（非年报），使用TTM预测值
       if (income.reportType !== 'annual') {
-        netProfitRaw = projectValue(netProfitRaw, income.reportType, profitRatios)
+        if (currentProfitTTM !== null && profitTTMPrediction.confidence !== 'low') {
+          // 使用当前TTM作为预测值（TTM本身就是滚动12个月数据，更接近真实年度值）
+          netProfitRaw = currentProfitTTM
+          console.log(`使用当前TTM作为净利润预测: ${netProfitRaw}`)
+        } else {
+          // 后备：使用原有季节性比例算法
+          netProfitRaw = projectValue(netProfitRaw, income.reportType, profitRatios)
+          console.log(`使用原有算法预测净利润: ${netProfitRaw}`)
+        }
       }
 
       if (cf.reportType !== 'annual') {
-        operatingCFRaw = projectValue(operatingCFRaw, cf.reportType, cashFlowRatios)
+        if (currentCFTTM !== null && cfTTMPrediction.confidence !== 'low') {
+          // 使用当前TTM作为预测值
+          operatingCFRaw = currentCFTTM
+          console.log(`使用当前TTM作为运营现金流预测: ${operatingCFRaw}`)
+        } else {
+          // 后备：使用原有季节性比例算法
+          operatingCFRaw = projectValue(operatingCFRaw, cf.reportType, cashFlowRatios)
+          console.log(`使用原有算法预测运营现金流: ${operatingCFRaw}`)
+        }
+        
         capExRaw = projectValue(capExRaw, cf.reportType, cashFlowRatios)
       }
+
+      const freeCashFlow = operatingCFRaw - Math.abs(capExRaw)
+      console.log(`最终自由现金流: ${operatingCFRaw} - ${Math.abs(capExRaw)} = ${freeCashFlow}`)
 
       years.push(year)
       cashAndEquivalents.push(Math.round(balance.cashAndEquivalents * toHKD * 100) / 100)
@@ -473,6 +653,8 @@ export async function fetchHKStockFinancialReport(
       isProjected.push(isYearProjected)
     }
 
+    console.log('========== 年度数据处理完成 ==========')
+
     if (years.length === 0) {
       return {
         data: null,
@@ -482,6 +664,16 @@ export async function fetchHKStockFinancialReport(
         },
       }
     }
+
+    // ====== 日志：最终返回数据 ======
+    console.log('========== 最终返回数据 ==========')
+    console.log('年份:', years)
+    console.log('净利润:', netProfits)
+    console.log('运营现金流:', operatingCashFlow)
+    console.log('资本开支:', capitalExpenditure)
+    console.log('自由现金流(计算值):', netProfits.map((np, i) => (operatingCashFlow[i] || 0) - Math.abs(capitalExpenditure[i] || 0)))
+    console.log('是否为预测数据:', isProjected)
+    console.log('========== 财务数据获取结束 ==========')
 
     return {
       data: {

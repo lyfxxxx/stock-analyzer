@@ -44,26 +44,37 @@
         <!-- API Mode: Stock Info (Before Fetch) -->
         <div v-if="dataSourceMode === 'api' && !stockInfoFromApi" class="form-section">
           <h2>股票信息</h2>
-          <p class="section-desc">输入股票代码，点击按钮自动获取股票名称、市值及财务报表数据</p>
+          <p class="section-desc">输入股票代码或名称，自动获取股票信息及财报数据</p>
           
           <div class="form-row">
-            <div class="form-group">
-              <label>股票代码 <span class="required">*</span></label>
-              <input
-                v-model="form.code"
-                type="text"
-                :placeholder="form.market === 'HK' ? '如: 00700' : '如: 600519'"
-                class="form-input"
-                :class="{ 'input-error': !codeValidation.isValid }"
-                :disabled="isEditMode"
-                @blur="validateCodeOnBlur"
-              >
+            <div class="form-group search-input-group">
+              <label>股票名称或代码 <span class="required">*</span></label>
+              <div class="search-input-wrapper">
+                <input
+                  v-model="form.code"
+                  type="text"
+                  placeholder="输入代码或名称搜索..."
+                  class="form-input"
+                  :class="{ 'input-error': !codeValidation.isValid }"
+                  :disabled="isEditMode"
+                  @keyup.enter="openSearchModal"
+                >
+                <button 
+                  type="button" 
+                  class="search-button" 
+                  @click="openSearchModal"
+                  :disabled="!form.code"
+                  title="搜索"
+                >
+                  🔍
+                </button>
+              </div>
               <span v-if="!codeValidation.isValid" class="error-message">{{ codeValidation.message }}</span>
             </div>
 
             <div class="form-group">
               <label>市场 <span class="required">*</span></label>
-              <select v-model="form.market" class="form-select" :disabled="isEditMode" @change="onMarketChange">
+              <select v-model="form.market" class="form-select" :disabled="true" @change="onMarketChange">
                 <option value="HK">港股</option>
                 <option value="A">A股</option>
               </select>
@@ -79,6 +90,50 @@
             <span v-if="fetchLoading" class="btn-spinner"></span>
             <span v-else>📊 获取财报数据</span>
           </button>
+
+          <!-- Search Modal -->
+          <div v-if="showSearchModal" class="modal-overlay" @click.self="closeSearchModal">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h3>搜索股票</h3>
+                <button class="modal-close" @click="closeSearchModal">×</button>
+              </div>
+              <div class="modal-body">
+                <div class="search-input-container">
+                  <input
+                    ref="searchInputRef"
+                    v-model="searchQuery"
+                    type="text"
+                    placeholder="输入股票名称/代码..."
+                    class="search-modal-input"
+                    @input="onSearchInput"
+                    @keyup.enter="performSearch"
+                  >
+                  <button class="search-modal-btn" @click="performSearch">🔍</button>
+                </div>
+                <div v-if="stockStore.isSearching" class="search-loading">
+                  搜索中...
+                </div>
+                <div v-else-if="stockStore.searchResults.length > 0" class="search-results">
+                  <div 
+                    v-for="result in stockStore.searchResults" 
+                    :key="result.fullCode"
+                    class="search-result-item"
+                    @click="selectSearchResult(result)"
+                  >
+                    <div class="result-main">
+                      <span class="result-name">{{ result.name }}</span>
+                      <span class="result-code">({{ result.fullCode }})</span>
+                    </div>
+                    <span class="result-market">{{ result.marketName }}</span>
+                  </div>
+                </div>
+                <div v-else-if="searchQuery && searchPerformed" class="search-empty">
+                  未找到匹配的股票
+                </div>
+              </div>
+            </div>
+          </div>
 
           <!-- Error State -->
           <div v-if="fetchError" class="fetch-error">
@@ -134,7 +189,6 @@
                 :class="{ 'disabled': !isEditingCode, 'input-error': !codeValidation.isValid }"
                 :disabled="!isEditingCode"
                 :placeholder="form.market === 'HK' ? '如: 00700' : '如: 600519'"
-                @blur="validateCodeOnBlur"
               >
               <span v-if="isEditingCode && !codeValidation.isValid" class="error-message">{{ codeValidation.message }}</span>
             </div>
@@ -192,7 +246,6 @@
                 class="form-input"
                 :class="{ 'input-error': !codeValidation.isValid }"
                 :disabled="isEditMode"
-                @blur="validateCodeOnBlur"
               >
               <span v-if="!codeValidation.isValid" class="error-message">{{ codeValidation.message }}</span>
             </div>
@@ -419,7 +472,7 @@ const exchangeRates = ref<Record<string, number>>({ HKD: 1, USD: 7.75, CNY: 1.10
 const form = reactive({
   code: '',
   name: '',
-  market: 'HK' as 'HK' | 'A',
+  market: '' as 'HK' | 'A',
   marketCap: 0,
   marketCapCurrency: 'HKD' as CurrencyType
 })
@@ -427,6 +480,12 @@ const form = reactive({
 const codeValidation = ref<{ isValid: boolean; message?: string }>({ isValid: true })
 const nameValidation = ref<{ isValid: boolean; message?: string }>({ isValid: true })
 const marketCapValidation = ref<{ isValid: boolean; message?: string }>({ isValid: true })
+
+const showSearchModal = ref(false)
+const searchQuery = ref('')
+const searchPerformed = ref(false)
+const searchInputRef = ref<HTMLInputElement | null>(null)
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
 const uploadedFiles = ref<Partial<Record<'benefit' | 'debt' | 'cash' | 'keyIndex', File>>>({})
 const parsedExcelData = ref<ExcelData | null>(null)
@@ -577,19 +636,49 @@ function onMarketChange() {
   displayCurrency.value = form.market === 'A' ? 'CNY' : 'HKD'
 }
 
-function validateCodeOnBlur() {
+function openSearchModal() {
   if (!form.code) return
+  searchQuery.value = form.code
+  searchPerformed.value = false
+  stockStore.clearSearchResults()
+  showSearchModal.value = true
+  setTimeout(async () => {
+    searchInputRef.value?.focus()
+    if (searchQuery.value.trim()) {
+      await performSearch()
+    }
+  }, 100)
+}
 
-  const codeResult = validateStockCode(form.code, form.market)
-  codeValidation.value = codeResult
-  if (!codeResult.isValid) return
+function closeSearchModal() {
+  showSearchModal.value = false
+  searchQuery.value = ''
+  searchPerformed.value = false
+  stockStore.clearSearchResults()
+}
 
-  const existingStock = stockStore.stocks.find(
-    s => s.code === form.code && s.market === form.market && s.id !== editingStockId.value
-  )
-  if (existingStock) {
-    codeValidation.value = { isValid: false, message: '该股票已存在' }
+function onSearchInput() {
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
   }
+  searchDebounceTimer = setTimeout(() => {
+    performSearch()
+  }, 300)
+}
+
+async function performSearch() {
+  if (!searchQuery.value.trim()) return
+  searchPerformed.value = true
+  await stockStore.searchStocks(searchQuery.value.trim())
+}
+
+function selectSearchResult(result: typeof stockStore.searchResults[0]) {
+  form.code = result.code
+  form.market = result.market
+  form.name = result.name
+  codeValidation.value = { isValid: true }
+  nameValidation.value = { isValid: true }
+  closeSearchModal()
 }
 
 function setMode(mode: DataSourceMode) {
@@ -699,9 +788,6 @@ function cancelEditMode() {
   // 退出编辑模式
   isEditingCode.value = false
   stockInfoFromApi.value = true
-
-  // 重新验证代码
-  validateCodeOnBlur()
 }
 
 function switchToManual() {
@@ -1598,5 +1684,180 @@ function formatCurrency(value: number | undefined): string {
   .save-actions {
     flex-direction: column;
   }
+}
+
+.search-input-group {
+  flex: 1;
+}
+
+.search-input-wrapper {
+  display: flex;
+  gap: 8px;
+}
+
+.search-input-wrapper .form-input {
+  flex: 1;
+}
+
+.search-button {
+  padding: 8px 12px;
+  background: var(--btn-primary-bg);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.search-button:hover:not(:disabled) {
+  background: var(--btn-primary-hover-bg);
+}
+
+.search-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--card-bg);
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text-primary);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: var(--text-primary);
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.search-input-container {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.search-modal-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 14px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.search-modal-input:focus {
+  outline: none;
+  border-color: var(--btn-primary-bg);
+}
+
+.search-modal-btn {
+  padding: 10px 16px;
+  background: var(--btn-primary-bg);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.search-modal-btn:hover {
+  background: var(--btn-primary-hover-bg);
+}
+
+.search-loading,
+.search-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-secondary);
+}
+
+.search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.search-result-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.search-result-item:hover {
+  background: var(--btn-primary-bg);
+  color: white;
+}
+
+.search-result-item:hover .result-market {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.result-main {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.result-name {
+  font-weight: 500;
+}
+
+.result-code {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.result-market {
+  color: var(--text-secondary);
+  font-size: 13px;
 }
 </style>

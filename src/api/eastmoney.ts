@@ -1,4 +1,4 @@
-import type { ApiStockInfo, ApiTestResult } from '@/types/stock'
+import type { ApiStockInfo, ApiTestResult, StockSearchResult } from '@/types/stock'
 import { fetchExchangeRates } from './exchangeRate'
 
 export async function fetchEastMoneyStockInfo(code: string, market: 'HK' | 'A'): Promise<ApiStockInfo | null> {
@@ -108,5 +108,108 @@ export async function testEastMoneyAPI(): Promise<ApiTestResult> {
       message: error instanceof Error ? error.message : '网络错误',
       latency: Math.round(performance.now() - start)
     }
+  }
+}
+
+interface SearchApiResponse {
+  QuotationCodeTable?: {
+    Data?: SearchItem[]
+  }
+}
+
+interface SearchItem {
+  Code: string
+  Name: string
+  MktNum: string
+  Classify: string
+  JYS: string
+}
+
+const JYS_CODE_MAP: Record<string, string> = {
+  '116': 'HK',  // 港股
+  '1': 'SH',    // 上海A股
+  '6': 'SZ',    // 深圳A股
+}
+
+function mapJysToCode(jys: string): string {
+  return JYS_CODE_MAP[jys] || jys
+}
+
+function mapMarketCode(mktNum: string, classify: string, jys: string): { market: 'HK' | 'A'; marketName: string } {
+  if (classify === 'HK' || jys === 'HK' || jys === '116') {
+    return { market: 'HK', marketName: '港股' }
+  }
+  if (mktNum === '0' || jys === 'SZ' || jys === '6') {
+    return { market: 'A', marketName: 'A股(深)' }
+  }
+  if (mktNum === '1' || jys === 'SH' || jys === '1') {
+    return { market: 'A', marketName: 'A股(沪)' }
+  }
+  return { market: 'A', marketName: 'A股' }
+}
+
+export async function searchStocksByName(
+  query: string,
+  market?: 'HK' | 'A'
+): Promise<StockSearchResult[]> {
+  if (!query || query.trim().length === 0) {
+    return []
+  }
+
+  try {
+    const searchUrl = `/api/search?input=${encodeURIComponent(query)}&type=14&count=10`
+    
+    const response = await fetch(searchUrl, {
+      method: 'GET',
+      mode: 'cors',
+      headers: {
+        'Accept': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      return []
+    }
+
+    const data: SearchApiResponse = await response.json()
+    
+    if (!data.QuotationCodeTable?.Data) {
+      return []
+    }
+
+    const results: StockSearchResult[] = data.QuotationCodeTable.Data
+      .filter(item => {
+        const jysCode = mapJysToCode(item.JYS)
+        return ['HK', 'SH', 'SZ'].includes(jysCode)
+      })
+      .map(item => {
+        const jysCode = mapJysToCode(item.JYS)
+        const { market: marketType, marketName } = mapMarketCode(item.MktNum, item.Classify, jysCode)
+        
+        if (market && marketType !== market) {
+          return null
+        }
+
+        const fullCode = jysCode === 'HK'
+          ? `${item.Code}.HK`
+          : jysCode === 'SZ'
+            ? `${item.Code}.SZ`
+            : `${item.Code}.SH`
+
+        return {
+          code: item.Code,
+          fullCode,
+          name: item.Name,
+          market: marketType,
+          marketName,
+          marketCap: 0
+        }
+      })
+      .filter((item): item is StockSearchResult => item !== null)
+
+    return results
+  } catch (error) {
+    console.error('Search stocks error:', error)
+    return []
   }
 }

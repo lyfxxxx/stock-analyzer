@@ -59,6 +59,11 @@ export interface ApiStockInfo {
   marketCap: number
 }
 
+export interface StockSearchResult extends ApiStockInfo {
+  fullCode: string
+  marketName: string
+}
+
 export interface ValidationError {
   file: string
   field: string
