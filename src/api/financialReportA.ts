@@ -256,11 +256,11 @@ export async function fetchAStockFinancialReport(
     }
 
     const { rates } = await fetchExchangeRates()
-    const toHKD = rates['CNY'] || 1.10
+    const toHKD = 1 / (rates['CNY'] || 1.10)
 
     console.log('========== A股财务数据获取开始 ==========')
     console.log(`股票代码: ${code}`)
-    console.log(`汇率 CNY -> HKD: ${toHKD}`)
+    console.log(`汇率 CNY -> HKD: 1 / ${rates['CNY'] || 1.10} = ${toHKD}`)
 
     const { profitRatios, cashFlowRatios } = calculateSeasonalRatiosFromData(incomeStatement, cashFlow)
 

@@ -442,8 +442,8 @@ export async function fetchHKStockFinancialReport(
     console.log('现金流量表报告类型分布:', Object.fromEntries(cfReportTypes))
 
     const { rates } = await fetchExchangeRates()
-    const toHKD = rates['CNY'] || 1.10
-    console.log(`汇率 CNY -> HKD: ${toHKD}`)
+    const toHKD = 1 / (rates['CNY'] || 1.10)
+    console.log(`汇率 CNY -> HKD: 1 / ${rates['CNY'] || 1.10} = ${toHKD}`)
 
     const { profitRatios, cashFlowRatios } = calculateSeasonalRatiosFromData(incomeStatement, cashFlow)
 

@@ -839,21 +839,23 @@ async function saveStock() {
 
   saving.value = true
   try {
+    const rawData = toRaw(previewData.value)
+    
     if (isEditMode.value && editingStockId.value) {
       await stockStore.recalculateStock(editingStockId.value, {
         name: form.name,
         marketCap: form.marketCap,
-        netCash: previewData.value.netCash,
-        freeCashFlow: previewData.value.freeCashFlow,
-        netProfit: previewData.value.netProfit,
-        valuation1: previewData.value.valuation1,
-        valuation2: previewData.value.valuation2,
-        yearlyData: previewData.value.yearlyData
+        netCash: rawData.netCash,
+        freeCashFlow: rawData.freeCashFlow,
+        netProfit: rawData.netProfit,
+        valuation1: rawData.valuation1,
+        valuation2: rawData.valuation2,
+        yearlyData: rawData.yearlyData
       })
     } else {
       const stockData = {
-        ...toRaw(previewData.value),
-        id: `${previewData.value.market}${previewData.value.code}_${Date.now()}`,
+        ...rawData,
+        id: `${rawData.market}${rawData.code}_${Date.now()}`,
         createdAt: Date.now(),
         updatedAt: Date.now()
       }

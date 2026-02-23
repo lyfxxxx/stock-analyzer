@@ -217,8 +217,8 @@ describe('financialReportA', () => {
       const result = await fetchAStockFinancialReport('002027')
 
       expect(result.data).not.toBeNull()
-      // A-stock data is in CNY, need to convert to HKD (multiply by rate 1.10)
-      const cnyToHkd = 1.10
+      // A-stock data is in CNY, need to convert to HKD (divide by rate 1.10)
+      const cnyToHkd = 1 / 1.10
       const totalCashInYuan = 1000000000 + 500000000
       const expectedInHKD = (totalCashInYuan / 100000000) * cnyToHkd
       expect(result.data?.cashAndEquivalents[0]).toBeCloseTo(expectedInHKD, 1)
@@ -407,8 +407,8 @@ describe('financialReportHK', () => {
       const result = await fetchHKStockFinancialReport('03613')
 
       expect(result.data).not.toBeNull()
-      // HK stock data is in CNY, need to convert to HKD (multiply by rate 1.10)
-      const cnyToHkd = 1.10
+      // HK stock data is in CNY, need to convert to HKD (divide by rate 1.10)
+      const cnyToHkd = 1 / 1.10
       const expectedTotalCash = ((1641937446.96 + 43226621.16) / 100000000) * cnyToHkd
       expect(result.data?.cashAndEquivalents[0]).toBeCloseTo(expectedTotalCash, 1)
       
@@ -521,7 +521,7 @@ describe('financialReportHK', () => {
       expect(result.data).not.toBeNull()
       expect(result.data?.years).toEqual([2024])
       
-      const cnyToHkd = 1.10
+      const cnyToHkd = 1 / 1.10
       const expectedCapEx = -((500000000 + 300000000 + 200000000) / 100000000) * cnyToHkd
       expect(result.data?.capitalExpenditure[0]).toBeCloseTo(expectedCapEx, 1)
     })
@@ -572,7 +572,7 @@ describe('financialReportHK', () => {
       const result = await fetchHKStockFinancialReport('00883')
 
       expect(result.data).not.toBeNull()
-      const cnyToHkd = 1.10
+      const cnyToHkd = 1 / 1.10
       const expectedCapEx = -(400000000 / 100000000) * cnyToHkd
       expect(result.data?.capitalExpenditure[0]).toBeCloseTo(expectedCapEx, 1)
     })
@@ -623,7 +623,7 @@ describe('financialReportHK', () => {
       const result = await fetchHKStockFinancialReport('00883')
 
       expect(result.data).not.toBeNull()
-      const cnyToHkd = 1.10
+      const cnyToHkd = 1 / 1.10
       const expectedCapEx = -(150000000 / 100000000) * cnyToHkd
       expect(result.data?.capitalExpenditure[0]).toBeCloseTo(expectedCapEx, 1)
     })
