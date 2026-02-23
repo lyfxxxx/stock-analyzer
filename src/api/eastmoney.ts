@@ -157,15 +157,29 @@ export async function searchStocksByName(
   }
 
   try {
-    const searchUrl = `/api/search?input=${encodeURIComponent(query)}&type=14&count=10`
+    const isDev = import.meta.env.DEV
     
-    const response = await fetch(searchUrl, {
-      method: 'GET',
-      mode: 'cors',
-      headers: {
-        'Accept': 'application/json'
-      }
-    })
+    const searchUrl = isDev
+      ? `/api/search?input=${encodeURIComponent(query)}&type=14&count=10`
+      : `https://searchapi.eastmoney.com/api/suggest/get?input=${encodeURIComponent(query)}&type=14&count=10`
+    
+    const fetchOptions: RequestInit = isDev
+      ? {
+          method: 'GET',
+          mode: 'cors',
+          headers: { 'Accept': 'application/json' }
+        }
+      : {
+          method: 'GET',
+          mode: 'cors',
+          headers: {
+            'Accept': 'application/json',
+            'Referer': 'https://www.eastmoney.com/',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          }
+        }
+    
+    const response = await fetch(searchUrl, fetchOptions)
 
     if (!response.ok) {
       return []
