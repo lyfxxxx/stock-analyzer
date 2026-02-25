@@ -364,6 +364,8 @@ function calculateRatios(
   for (const q of quarterlyData) {
     const annualValue = annualData.get(q.year)
     if (!annualValue || annualValue === 0) continue
+    
+    if (q.value <= 0) continue
 
     const ratio = q.value / annualValue
     if (q.reportType === 'Q1') q1Ratios.push(ratio)
