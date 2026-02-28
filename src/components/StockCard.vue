@@ -1,29 +1,10 @@
 <template>
-  <div class="stock-card" :class="{ 'updating': isUpdating }">
+  <div class="stock-card">
     <div class="card-header">
       <div class="stock-info">
         <h3 class="stock-name">{{ stock.name }}</h3>
         <span class="stock-code">{{ stock.code }}</span>
         <span class="market-badge" :class="stock.market">{{ stock.market }}</span>
-      </div>
-      <div class="card-actions">
-        <button 
-          v-if="isApiAvailable"
-          class="action-btn refresh-btn"
-          :disabled="isUpdating"
-          :title="isUpdating ? '更新中...' : '更新市值'"
-          @click.stop="handleUpdateMarketCap"
-        >
-          <span v-if="isUpdating" class="spinner-small"></span>
-          <span v-else>↻</span>
-        </button>
-        <button 
-          class="action-btn edit-btn"
-          title="编辑"
-          @click.stop="handleEdit"
-        >
-          ✎
-        </button>
       </div>
     </div>
     
@@ -71,35 +52,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import type { StockData } from '@/types/stock'
 
 const props = defineProps<{
   stock: StockData
-  isApiAvailable?: boolean
-  updatingId?: string | null
 }>()
 
 const emit = defineEmits<{
   (e: 'click', stock: StockData): void
-  (e: 'update-market-cap', stock: StockData): void
-  (e: 'edit', stock: StockData): void
 }>()
-
-const isUpdating = computed(() => props.updatingId === props.stock.id)
 
 function handleClick() {
   emit('click', props.stock)
-}
-
-function handleUpdateMarketCap() {
-  if (!isUpdating.value) {
-    emit('update-market-cap', props.stock)
-  }
-}
-
-function handleEdit() {
-  emit('edit', props.stock)
 }
 
 function formatCurrency(value: number): string {
@@ -193,78 +157,6 @@ function getValuationClass(value: number | null): string {
   font-size: 13px;
   color: var(--text-secondary);
   margin-bottom: 16px;
-}
-
-.card-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.action-btn {
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  transition: all 0.2s;
-}
-
-.refresh-btn {
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-}
-
-.refresh-btn:hover:not(:disabled) {
-  background: var(--primary-color);
-  color: white;
-}
-
-.refresh-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.edit-btn {
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-}
-
-.edit-btn:hover {
-  background: var(--accent-color);
-  color: white;
-}
-
-.spinner-small {
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(0, 0, 0, 0.1);
-  border-top-color: var(--primary-color);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.stock-card.updating {
-  opacity: 0.8;
-}
-
-.base-currency {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-left: 2px;
-}
-
-.rate-warning {
-  color: var(--warning-color);
-  font-weight: bold;
-  cursor: help;
 }
 
 .card-body {
@@ -378,6 +270,18 @@ function getValuationClass(value: number | null): string {
 
 .stock-card:hover .arrow {
   opacity: 1;
+}
+
+.base-currency {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+
+.rate-warning {
+  color: var(--warning-color);
+  font-weight: bold;
+  cursor: help;
 }
 
 @media (max-width: 640px) {

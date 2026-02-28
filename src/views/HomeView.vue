@@ -6,10 +6,22 @@
           <span class="logo-icon">S</span>
           <h1>StockAnalyzer</h1>
         </div>
-        <button class="add-button" @click="goToAdd">
-          <span class="btn-icon">+</span>
-          新增股票
-        </button>
+        <div class="header-actions">
+          <button 
+            v-if="stockStore.stockCount > 0" 
+            class="update-all-button" 
+            :disabled="isUpdatingAll"
+            @click="refreshAllMarketCaps"
+          >
+            <span v-if="isUpdatingAll" class="spinner-small"></span>
+            <span v-else>↻</span>
+            更新全部
+          </button>
+          <button class="add-button" @click="goToAdd">
+            <span class="btn-icon">+</span>
+            新增股票
+          </button>
+        </div>
       </div>
     </header>
 
@@ -47,11 +59,7 @@
             v-for="stock in filteredStocks"
             :key="stock.id"
             :stock="stock"
-            :is-api-available="isApiAvailable"
-            :updating-id="updatingStockId"
             @click="goToDetail(stock.id)"
-            @update-market-cap="handleUpdateMarketCap"
-            @edit="goToEdit"
           />
         </div>
       </template>
@@ -62,17 +70,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { debounce } from 'lodash'
 import { useStockStore } from '@/stores/stockStore'
 import ApiTester from '@/components/ApiTester.vue'
 import StockCard from '@/components/StockCard.vue'
-import type { StockData } from '@/types/stock'
 
 const router = useRouter()
 const stockStore = useStockStore()
 
 const isApiAvailable = ref(false)
-const updatingStockId = ref<string | null>(null)
+const isUpdatingAll = ref(false)
 const searchQuery = ref('')
 
 const filteredStocks = computed(() => {
@@ -103,34 +109,21 @@ function updateRefreshDate() {
 }
 
 async function refreshAllMarketCaps() {
-  if (!isApiAvailable.value) return
+  if (!isApiAvailable.value || isUpdatingAll.value) return
   
-  const today = getTodayDate()
-  for (const stock of stockStore.stocks) {
-    updatingStockId.value = stock.id
-    try {
-      await stockStore.updateStockMarketCap(stock.id)
-    } catch (e) {
-      console.error(`Failed to update ${stock.code}:`, e)
-    }
-    updatingStockId.value = null
-  }
-  updateRefreshDate()
-}
-
-const debouncedRefreshMarketCap = debounce(async (stock: StockData) => {
-  updatingStockId.value = stock.id
+  isUpdatingAll.value = true
   try {
-    await stockStore.updateStockMarketCap(stock.id)
-  } catch (e) {
-    console.error('Failed to update market cap:', e)
+    for (const stock of stockStore.stocks) {
+      try {
+        await stockStore.updateStockWithRecalculation(stock.id)
+      } catch (e) {
+        console.error(`Failed to update ${stock.code}:`, e)
+      }
+    }
+    updateRefreshDate()
   } finally {
-    updatingStockId.value = null
+    isUpdatingAll.value = false
   }
-}, 1000, { leading: false, trailing: true })
-
-async function handleUpdateMarketCap(stock: StockData) {
-  debouncedRefreshMarketCap(stock)
 }
 
 function handleApiAvailability(available: boolean) {
@@ -143,10 +136,6 @@ function goToAdd() {
 
 function goToDetail(id: string) {
   router.push(`/stock/${id}`)
-}
-
-function goToEdit(stock: StockData) {
-  router.push(`/edit/${stock.id}`)
 }
 
 onMounted(async () => {
@@ -182,6 +171,11 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   height: 64px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
 }
 
 .logo {
@@ -232,6 +226,40 @@ onMounted(async () => {
 .add-button:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.update-all-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.update-all-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.update-all-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinner-small {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 .btn-icon {

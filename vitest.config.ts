@@ -6,8 +6,7 @@ export default defineConfig({
   plugins: [vue()],
   test: {
     environment: 'jsdom',
-    globals: true,
-    pool: 'forks',
+    include: ['src/**/*.spec.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -15,6 +14,7 @@ export default defineConfig({
         'node_modules/',
         'src/**/*.d.ts',
         'src/**/types/',
+        'e2e/',
       ]
     }
   },

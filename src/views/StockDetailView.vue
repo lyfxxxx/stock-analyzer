@@ -7,7 +7,17 @@
           返回
         </button>
         <h1 v-if="stock">{{ stock.name }} ({{ stock.code }})</h1>
-        <div class="placeholder"></div>
+        <div class="header-actions">
+          <button 
+            class="update-button" 
+            :disabled="isUpdating"
+            @click="handleUpdateFinancialData"
+          >
+            <span v-if="isUpdating" class="spinner-small"></span>
+            <span v-else>↻</span>
+            更新财报数据
+          </button>
+        </div>
       </div>
     </header>
 
@@ -175,6 +185,7 @@ const stockStore = useStockStore()
 const stock = ref<StockData | null>(null)
 const loading = ref(true)
 const deleting = ref(false)
+const isUpdating = ref(false)
 const displayCurrency = ref<CurrencyType>('HKD')
 const exchangeRates = ref<Record<string, number>>({ HKD: 1, USD: 7.75, CNY: 1.10 })
 const sortOrder = ref<'asc' | 'desc'>('desc')
@@ -255,6 +266,23 @@ async function deleteStock() {
   }
 }
 
+async function handleUpdateFinancialData() {
+  if (!stock.value || isUpdating.value) return
+  
+  isUpdating.value = true
+  try {
+    const updatedStock = await stockStore.updateStockWithRecalculation(stock.value.id)
+    if (updatedStock) {
+      stock.value = updatedStock
+    }
+  } catch (e) {
+    console.error('Failed to update financial data:', e)
+    alert('更新失败，请重试')
+  } finally {
+    isUpdating.value = false
+  }
+}
+
 function goBack() {
   router.push('/')
 }
@@ -307,8 +335,43 @@ function goBack() {
   color: var(--text-primary);
 }
 
-.placeholder {
-  width: 60px;
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.update-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.update-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.update-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinner-small {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 .main-content {

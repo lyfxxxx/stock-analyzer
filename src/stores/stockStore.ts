@@ -206,6 +206,53 @@ export const useStockStore = defineStore('stock', () => {
     }
   }
 
+  // 新增：更新市值并重新计算估值
+  async function updateStockWithRecalculation(id: string) {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const stock = await stockDB.get(id)
+      if (!stock) {
+        throw new Error('股票不存在')
+      }
+      
+      // 1. 获取最新市值
+      const info = await fetchStockInfo(stock.code, stock.market)
+      if (!info) {
+        throw new Error('获取市值失败')
+      }
+      
+      // 2. 获取最新财报数据并计算估值
+      const financialResult = await fetchFinancialReport(stock.code, stock.market, info.marketCap)
+      
+      // 3. 保存完整的股票数据（包含新市值和新估值）
+      const updatedStock: StockData = {
+        ...stock,
+        name: info.name,
+        marketCap: info.marketCap,
+        netCash: financialResult.netCash,
+        freeCashFlow: financialResult.freeCashFlow,
+        netProfit: financialResult.netProfit,
+        valuation1: financialResult.valuation1,
+        valuation2: financialResult.valuation2,
+        yearlyData: financialResult.yearlyData,
+        isUsingProjectedData: financialResult.isUsingProjectedData,
+        updatedAt: Date.now()
+      }
+      
+      await stockDB.put(updatedStock)
+      await loadStocks()
+      
+      return updatedStock
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '更新并重新计算估值失败'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function updateStock(id: string, data: { name: string; marketCap: number }) {
     loading.value = true
     error.value = null
@@ -314,6 +361,7 @@ export const useStockStore = defineStore('stock', () => {
     fetchFinancialReport,
     clearError,
     updateStockMarketCap,
+    updateStockWithRecalculation,
     updateStock,
     recalculateStock,
     searchStocks,

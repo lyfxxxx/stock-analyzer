@@ -367,8 +367,11 @@
                 </template>
               </span>
             </div>
-            <div class="valuation-card highlight">
-              <span class="val-label">估值2 (市值-净现金)/净利润</span>
+            <div class="valuation-card highlight" :class="{ 'projected': previewData.isUsingProjectedData }">
+              <span class="val-label">
+                估值2 (市值-净现金)/净利润
+                <span v-if="previewData.isUsingProjectedData" class="projected-badge">预测</span>
+              </span>
               <span class="val-value">{{ previewData.valuation2.toFixed(2) }}</span>
             </div>
           </div>
