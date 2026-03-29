@@ -1,5 +1,11 @@
 <template>
   <div class="stock-detail-view">
+    <div v-if="isThisStockUpdating" class="updating-full-overlay">
+      <div class="spinner"></div>
+      <p>正在更新财报数据...</p>
+      <p class="update-hint">请稍候</p>
+    </div>
+
     <header class="page-header">
       <div class="header-content">
         <button class="back-button" @click="goBack">
@@ -8,12 +14,12 @@
         </button>
         <h1 v-if="stock">{{ stock.name }} ({{ stock.code }})</h1>
         <div class="header-actions">
-          <button 
-            class="update-button" 
-            :disabled="isUpdating"
+          <button
+            class="update-button"
+            :disabled="isThisStockUpdating"
             @click="handleUpdateFinancialData"
           >
-            <span v-if="isUpdating" class="spinner-small"></span>
+            <span v-if="isThisStockUpdating" class="spinner-small"></span>
             <span v-else>↻</span>
             更新财报数据
           </button>
@@ -185,10 +191,13 @@ const stockStore = useStockStore()
 const stock = ref<StockData | null>(null)
 const loading = ref(true)
 const deleting = ref(false)
-const isUpdating = ref(false)
 const displayCurrency = ref<CurrencyType>('HKD')
 const exchangeRates = ref<Record<string, number>>({ HKD: 1, USD: 7.75, CNY: 1.10 })
 const sortOrder = ref<'asc' | 'desc'>('desc')
+
+const isThisStockUpdating = computed(() => {
+  return stock.value ? stockStore.currentlyUpdatingIds.has(stock.value.id) : false
+})
 
 const sortedYearlyData = computed(() => {
   if (!stock.value) return []
@@ -267,9 +276,8 @@ async function deleteStock() {
 }
 
 async function handleUpdateFinancialData() {
-  if (!stock.value || isUpdating.value) return
-  
-  isUpdating.value = true
+  if (!stock.value || isThisStockUpdating.value) return
+
   try {
     const updatedStock = await stockStore.updateStockWithRecalculation(stock.value.id)
     if (updatedStock) {
@@ -278,8 +286,6 @@ async function handleUpdateFinancialData() {
   } catch (e) {
     console.error('Failed to update financial data:', e)
     alert('更新失败，请重试')
-  } finally {
-    isUpdating.value = false
   }
 }
 
@@ -292,6 +298,43 @@ function goBack() {
 .stock-detail-view {
   min-height: 100vh;
   background: var(--bg-primary);
+  position: relative;
+}
+
+.updating-full-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  color: white;
+  gap: 12px;
+}
+
+.updating-full-overlay .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.updating-full-overlay p {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.updating-full-overlay .update-hint {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .page-header {

@@ -1,5 +1,9 @@
 <template>
-  <div class="stock-card">
+  <div class="stock-card" :class="{ 'is-updating': isUpdating }">
+    <div v-if="isUpdating" class="updating-overlay">
+      <div class="spinner-small"></div>
+      <span>更新中...</span>
+    </div>
     <div class="card-header">
       <div class="stock-info">
         <h3 class="stock-name">{{ stock.name }}</h3>
@@ -56,6 +60,7 @@ import type { StockData } from '@/types/stock'
 
 const props = defineProps<{
   stock: StockData
+  isUpdating?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -100,6 +105,41 @@ function getValuationClass(value: number | null): string {
   padding: 20px;
   cursor: pointer;
   transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.stock-card.is-updating {
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.updating-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  z-index: 10;
+  border-radius: 12px;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.updating-overlay .spinner-small {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 .stock-card:hover {

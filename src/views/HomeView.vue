@@ -10,12 +10,12 @@
           <button 
             v-if="stockStore.stockCount > 0" 
             class="update-all-button" 
-            :disabled="isUpdatingAll"
+            :disabled="stockStore.isUpdatingAllStocks"
             @click="refreshAllMarketCaps"
           >
-            <span v-if="isUpdatingAll" class="spinner-small"></span>
+            <span v-if="stockStore.isUpdatingAllStocks" class="spinner-small"></span>
             <span v-else>↻</span>
-            <span v-if="isUpdatingAll && stockStore.updateProgress.total > 0">
+            <span v-if="stockStore.isUpdatingAllStocks && stockStore.updateProgress.total > 0">
               {{ stockStore.updateProgress.updated }}/{{ stockStore.updateProgress.total }}
             </span>
             <span v-else>更新全部</span>
@@ -62,6 +62,7 @@
             v-for="stock in filteredStocks"
             :key="stock.id"
             :stock="stock"
+            :is-updating="stockStore.currentlyUpdatingIds.has(stock.id)"
             @click="goToDetail(stock.id)"
           />
         </div>
@@ -81,7 +82,6 @@ const router = useRouter()
 const stockStore = useStockStore()
 
 const isApiAvailable = ref(false)
-const isUpdatingAll = ref(false)
 const searchQuery = ref('')
 
 const filteredStocks = computed(() => {
@@ -112,15 +112,14 @@ function updateRefreshDate() {
 }
 
 async function refreshAllMarketCaps() {
-  if (!isApiAvailable.value || isUpdatingAll.value) return
+  if (!isApiAvailable.value || stockStore.isUpdatingAllStocks) return
   
-  isUpdatingAll.value = true
   try {
     const ids = stockStore.stocks.map(s => s.id)
     await stockStore.updateAllStocks(ids)
     updateRefreshDate()
   } finally {
-    isUpdatingAll.value = false
+    // isUpdatingAllStocks is managed by the store
   }
 }
 

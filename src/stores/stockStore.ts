@@ -20,6 +20,8 @@ export const useStockStore = defineStore('stock', () => {
   
   // 新增：更新进度跟踪
   const updateProgress = ref({ updated: 0, total: 0 })
+  const isUpdatingAllStocks = ref(false)
+  const currentlyUpdatingIds = ref<Set<string>>(new Set())
 
   const sortedStocks = computed(() => {
     return [...stocks.value].sort((a, b) => b.updatedAt - a.updatedAt)
@@ -74,7 +76,14 @@ export const useStockStore = defineStore('stock', () => {
   async function getStockById(id: string): Promise<StockData | null> {
     try {
       await stockDB.init()
-      return await stockDB.get(id)
+      const stock = await stockDB.get(id)
+      if (!stock) return null
+      if (stock.netProfitProjected === undefined) {
+        stock.netProfitProjected = stock.isUsingProjectedData ?? false
+        stock.freeCashFlowProjected = stock.isUsingProjectedData ?? false
+        stock.netCashProjected = stock.isUsingProjectedData ?? false
+      }
+      return stock
     } catch (err) {
       console.error('Get stock error:', err)
       return null
@@ -222,6 +231,9 @@ export const useStockStore = defineStore('stock', () => {
   async function updateStockWithRecalculation(id: string, loadAfterUpdate: boolean = true) {
     error.value = null
     
+    // 添加到正在更新的ID集合
+    currentlyUpdatingIds.value.add(id)
+    
     // 只有在非批量更新模式下才设置 loading 状态
     if (loadAfterUpdate !== false) {
       loading.value = true
@@ -254,6 +266,9 @@ export const useStockStore = defineStore('stock', () => {
         valuation2: financialResult.valuation2,
         yearlyData: financialResult.yearlyData,
         isUsingProjectedData: financialResult.isUsingProjectedData,
+        netProfitProjected: financialResult.netProfitProjected,
+        freeCashFlowProjected: financialResult.freeCashFlowProjected,
+        netCashProjected: financialResult.netCashProjected,
         updatedAt: Date.now()
       }
       await stockDB.put(updatedStock)
@@ -268,6 +283,9 @@ export const useStockStore = defineStore('stock', () => {
       error.value = err instanceof Error ? err.message : '更新并重新计算估值失败'
       throw err
     } finally {
+      // 从正在更新的ID集合中移除
+      currentlyUpdatingIds.value.delete(id)
+      
       // 只有在非批量更新模式下才管理 loading 状态
       // 批量更新时由 updateAllStocks 统一管理
       if (loadAfterUpdate !== false) {
@@ -277,6 +295,7 @@ export const useStockStore = defineStore('stock', () => {
   }
   // 新增：并行更新多个股票（动态并发限制）
   async function updateAllStocks(ids: string[]): Promise<{ success: number; failed: number }> {
+    isUpdatingAllStocks.value = true
     loading.value = true
     error.value = null
     let success = 0
@@ -288,6 +307,7 @@ export const useStockStore = defineStore('stock', () => {
     
     // 初始化进度
     updateProgress.value = { updated: 0, total: ids.length }
+    ids.forEach(id => currentlyUpdatingIds.value.add(id))
     
     // 分批处理，每批最多 CONCURRENCY_LIMIT 个
     for (let i = 0; i < ids.length; i += CONCURRENCY_LIMIT) {
@@ -307,7 +327,11 @@ export const useStockStore = defineStore('stock', () => {
       )
       
       // 统计结果并更新进度
-      results.forEach((result) => {
+      results.forEach((result, idx) => {
+        const id = batch[idx]
+        if (id !== undefined) {
+          currentlyUpdatingIds.value.delete(id)
+        }
         if (result.status === 'fulfilled' && result.value.success) {
           success++
         } else {
@@ -324,6 +348,8 @@ export const useStockStore = defineStore('stock', () => {
     
     // 清除进度
     updateProgress.value = { updated: 0, total: 0 }
+    isUpdatingAllStocks.value = false
+    currentlyUpdatingIds.value.clear()
     
     loading.value = false
     return { success, failed }
@@ -425,6 +451,8 @@ export const useStockStore = defineStore('stock', () => {
     searchResults,
     isSearching,
     updateProgress,
+    isUpdatingAllStocks,
+    currentlyUpdatingIds,
     
     sortedStocks,
     stockCount,
