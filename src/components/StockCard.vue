@@ -18,13 +18,13 @@
         <span class="base-currency">({{ stock.market === 'A' ? '亿人民币' : '亿港元' }})</span>
         <span v-if="stock.rateSource === 'fallback'" class="rate-warning">*</span>
       </div>
-      
+
       <div class="valuation-row">
         <div class="valuation-item">
           <span class="label">估值1</span>
-          <span class="value" :class="getValuationClass(stock.valuation1)">
-            <template v-if="stock.valuation1 !== null">
-              {{ stock.valuation1.toFixed(2) }}
+          <span class="value" :class="getValuationClass(getCardValuation1())">
+            <template v-if="getCardValuation1() !== null">
+              {{ getCardValuation1()!.toFixed(2) }}
             </template>
             <template v-else>
               <span class="na-value">N/A</span>
@@ -34,19 +34,24 @@
               </span>
             </template>
           </span>
-          <span class="formula-hint">(市值-净现金)/自由现金流</span>
+          <span class="formula-hint">{{ getValuation1Formula() }}</span>
         </div>
         <div class="valuation-item">
           <span class="label">估值2</span>
-          <span class="value" :class="getValuationClass(stock.valuation2)">
-            {{ stock.valuation2.toFixed(2) }}
+          <span class="value" :class="getValuationClass(getCardValuation2())">
+            <template v-if="getCardValuation2() !== null">
+              {{ getCardValuation2()!.toFixed(2) }}
+            </template>
+            <template v-else>
+              <span class="na-value">N/A</span>
+            </template>
           </span>
-          <span class="formula-hint">(市值-净现金)/净利润</span>
+          <span class="formula-hint">{{ getValuation2Formula() }}</span>
         </div>
       </div>
 
       <div class="metric-row">
-        <div class="metric-item">
+        <div class="metric-item" v-if="stock.currentRatio === null || stock.currentRatio >= 1.5">
           <span class="label">
             PE
             <span class="tooltip-trigger">
@@ -54,7 +59,7 @@
               <span class="tooltip-text">PE = 市值 / 净利润</span>
             </span>
           </span>
-          <span class="value">
+          <span class="value" :class="getMetricClass('pe', stock.peRatio)">
             <template v-if="stock.peRatio !== null">
               {{ stock.peRatio.toFixed(1) }}x
             </template>
@@ -71,7 +76,7 @@
               <span class="tooltip-text">流动比率 = 流动资产 / 流动负债</span>
             </span>
           </span>
-          <span class="value">
+          <span class="value" :class="getMetricClass('currentRatio', stock.currentRatio)">
             <template v-if="stock.currentRatio !== null">
               {{ stock.currentRatio.toFixed(2) }}
             </template>
@@ -125,12 +130,56 @@ function formatDate(timestamp: number): string {
   })
 }
 
+function getCardValuation1(): number | null {
+  const stock = props.stock
+  if (stock.currentRatio !== null && stock.currentRatio < 1.5) {
+    if (stock.freeCashFlow <= 0) return null
+    return stock.marketCap / stock.freeCashFlow
+  }
+  return stock.valuation1
+}
+
+function getCardValuation2(): number | null {
+  const stock = props.stock
+  if (stock.currentRatio !== null && stock.currentRatio < 1.5) {
+    return stock.peRatio
+  }
+  return stock.valuation2
+}
+
 function getValuationClass(value: number | null): string {
   if (value === null) return 'na'
   if (value < 0) return 'negative'
   if (value < 12) return 'low'
   if (value < 20) return 'medium'
   return 'high'
+}
+
+function getMetricClass(type: 'pe' | 'currentRatio', value: number | null): string {
+  if (value === null) return 'na'
+  if (type === 'pe') {
+    if (value < 12) return 'low'
+    if (value < 20) return 'medium'
+    return 'high'
+  }
+  if (type === 'currentRatio') {
+    return value >= 1.5 ? 'low' : 'medium'
+  }
+  return 'na'
+}
+
+function getValuation1Formula(): string {
+  if (props.stock.currentRatio !== null && props.stock.currentRatio < 1.5) {
+    return '市值/自由现金流'
+  }
+  return '(市值-净现金)/自由现金流'
+}
+
+function getValuation2Formula(): string {
+  if (props.stock.currentRatio !== null && props.stock.currentRatio < 1.5) {
+    return '市值/净利润 (PE)'
+  }
+  return '(市值-净现金)/净利润'
 }
 </script>
 
@@ -309,7 +358,6 @@ function getValuationClass(value: number | null): string {
   font-size: 18px;
   font-weight: 700;
   font-family: 'JetBrains Mono', monospace;
-  color: var(--text-primary);
 }
 
 .na-value {

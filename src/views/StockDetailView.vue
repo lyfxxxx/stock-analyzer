@@ -102,18 +102,39 @@
                 估值1
                 <span v-if="stock.isUsingProjectedData" class="projected-badge">预测</span>
               </span>
-              <span class="val-formula">(市值 - 净现金) / 自由现金流</span>
+              <span class="val-formula" v-if="stock.currentRatio !== null && stock.currentRatio < 1.5">
+                市值 / 自由现金流
+                <span class="method-note">(流动比率 &lt; 1.5)</span>
+              </span>
+              <span class="val-formula" v-else>
+                (市值 - 净现金) / 自由现金流
+                <span class="method-note">(流动比率 ≥ 1.5)</span>
+              </span>
             </div>
-            <div class="val-result" :class="getValuationClass(stock.valuation1)">
-              <template v-if="stock.valuation1 !== null">
-                {{ stock.valuation1.toFixed(2) }}
+            <div class="val-result" :class="getValuationClass(stock.currentRatio !== null && stock.currentRatio < 1.5 && stock.freeCashFlow > 0 ? stock.marketCap / stock.freeCashFlow : stock.valuation1)">
+              <template v-if="stock.currentRatio !== null && stock.currentRatio < 1.5">
+                <template v-if="stock.freeCashFlow > 0">
+                  {{ (stock.marketCap / stock.freeCashFlow).toFixed(2) }}
+                </template>
+                <template v-else>
+                  <span class="na-value">N/A</span>
+                  <span class="tooltip-trigger">
+                    ⓘ
+                    <span class="tooltip-text">自由现金流为负时不计算估值</span>
+                  </span>
+                </template>
               </template>
               <template v-else>
-                <span class="na-value">N/A</span>
-                <span class="tooltip-trigger">
-                  ⓘ
-                  <span class="tooltip-text">自由现金流为负时不计算估值</span>
-                </span>
+                <template v-if="stock.valuation1 !== null">
+                  {{ stock.valuation1.toFixed(2) }}
+                </template>
+                <template v-else>
+                  <span class="na-value">N/A</span>
+                  <span class="tooltip-trigger">
+                    ⓘ
+                    <span class="tooltip-text">自由现金流为负时不计算估值</span>
+                  </span>
+                </template>
               </template>
             </div>
           </div>
@@ -123,12 +144,36 @@
                 估值2
                 <span v-if="stock.isUsingProjectedData" class="projected-badge">预测</span>
               </span>
-              <span class="val-formula">(市值 - 净现金) / 净利润</span>
+              <span class="val-formula" v-if="stock.currentRatio !== null && stock.currentRatio < 1.5">
+                市值 / 净利润 (PE)
+                <span class="method-note">(流动比率 &lt; 1.5)</span>
+              </span>
+              <span class="val-formula" v-else>
+                (市值 - 净现金) / 净利润
+                <span class="method-note">(流动比率 ≥ 1.5)</span>
+              </span>
             </div>
-            <div class="val-result" :class="getValuationClass(stock.valuation2)">
-              {{ stock.valuation2.toFixed(2) }}
+            <div class="val-result" :class="getValuationClass(stock.currentRatio !== null && stock.currentRatio < 1.5 ? stock.peRatio : stock.valuation2)">
+              <template v-if="stock.currentRatio !== null && stock.currentRatio < 1.5">
+                <template v-if="stock.peRatio !== null">
+                  {{ stock.peRatio.toFixed(2) }}
+                </template>
+                <template v-else>
+                  <span class="na-value">N/A</span>
+                </template>
+              </template>
+              <template v-else>
+                {{ stock.valuation2.toFixed(2) }}
+              </template>
             </div>
           </div>
+        </div>
+        <div class="valuation-note">
+          <span class="note-icon">ⓘ</span>
+          <span class="note-text">
+            流动比率 ≥ 1.5：使用 (市值 - 净现金) 为基础计算，反映股东真实回报<br>
+            流动比率 &lt; 1.5：使用 市值 为基础计算，反映整体企业价值
+          </span>
         </div>
       </div>
 
@@ -580,6 +625,33 @@ function goBack() {
   font-size: 12px;
   color: var(--text-muted);
   font-family: 'JetBrains Mono', monospace;
+}
+
+.method-note {
+  color: var(--primary-color);
+  font-size: 11px;
+  margin-left: 4px;
+}
+
+.valuation-note {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.note-icon {
+  color: var(--primary-color);
+  font-size: 14px;
+}
+
+.note-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
 }
 
 .val-result {
