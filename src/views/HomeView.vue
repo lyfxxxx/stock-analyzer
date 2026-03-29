@@ -385,24 +385,41 @@ onMounted(async () => {
   .page-header {
     padding: 0 16px;
   }
-  
+
   .header-content {
     height: 56px;
   }
-  
+
   .logo h1 {
     font-size: 18px;
   }
-  
-  .add-button {
-    padding: 8px 14px;
-    font-size: 13px;
+
+  .logo-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
   }
-  
+
+  .header-actions {
+    gap: 8px;
+  }
+
+  .add-button,
+  .update-all-button {
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+
+  .add-button .btn-icon {
+    font-size: 16px;
+  }
+
   .main-content {
     padding: 16px;
   }
-  
+
   .stocks-grid {
     grid-template-columns: 1fr;
     gap: 16px;

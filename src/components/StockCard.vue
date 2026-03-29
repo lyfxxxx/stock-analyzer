@@ -12,7 +12,7 @@
       </div>
     </div>
     
-    <div class="card-body" @click="handleClick">
+    <div class="card-body" @click="handleClick($event)">
       <div class="market-cap">
         市值: {{ formatCurrency(stock.marketCap) }}
         <span class="base-currency">({{ stock.market === 'A' ? '亿人民币' : '亿港元' }})</span>
@@ -28,7 +28,7 @@
             </template>
             <template v-else>
               <span class="na-value">N/A</span>
-              <span class="tooltip-trigger">
+              <span class="tooltip-trigger" @click.stop>
                 ⓘ
                 <span class="tooltip-text">自由现金流为负时不计算估值</span>
               </span>
@@ -109,7 +109,9 @@ const emit = defineEmits<{
   (e: 'click', stock: StockData): void
 }>()
 
-function handleClick() {
+function handleClick(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (target.closest('.tooltip-trigger')) return
   emit('click', props.stock)
 }
 
@@ -192,7 +194,7 @@ function getValuation2Formula(): string {
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .stock-card.is-updating {
@@ -377,12 +379,14 @@ function getValuation2Formula(): string {
   color: var(--text-secondary);
   cursor: help;
   position: relative;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .tooltip-text {
-  visibility: hidden;
+  display: none;
   position: absolute;
-  bottom: calc(100% + 8px);
+  top: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
   background: var(--bg-primary);
@@ -394,14 +398,12 @@ function getValuation2Formula(): string {
   white-space: nowrap;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   border: 1px solid var(--border-color);
-  z-index: 10;
-  opacity: 0;
-  transition: opacity 0.2s;
+  z-index: 100;
 }
 
-.tooltip-trigger:hover .tooltip-text {
-  visibility: visible;
-  opacity: 1;
+.tooltip-trigger:hover .tooltip-text,
+.tooltip-trigger:active .tooltip-text {
+  display: block;
 }
 
 .card-footer {
