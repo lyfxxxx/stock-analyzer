@@ -185,6 +185,7 @@
           data-type="freeCashFlow"
           :display-currency="displayCurrency"
           :exchange-rates="exchangeRates"
+          :source-currency="stock.baseCurrency"
         />
         <ValuationChart
           title="净利润趋势"
@@ -192,6 +193,7 @@
           data-type="netProfit"
           :display-currency="displayCurrency"
           :exchange-rates="exchangeRates"
+          :source-currency="stock.baseCurrency"
         />
       </div>
 
@@ -255,7 +257,7 @@ import { fetchExchangeRates } from '@/api/exchangeRate'
 import type { StockData } from '@/types/stock'
 import ValuationChart from '@/components/ValuationChart.vue'
 
-type CurrencyType = 'HKD' | 'CNY' | 'USD'
+type CurrencyType = 'HKD' | 'CNY' | 'USD' | 'OTHER'
 
 const router = useRouter()
 const route = useRoute()
@@ -281,8 +283,8 @@ const sortedYearlyData = computed(() => {
 })
 
 const currencyUnit = computed(() => {
-  const symbols: Record<CurrencyType, string> = { HKD: '亿港元', CNY: '亿人民币', USD: '亿美元' }
-  return symbols[displayCurrency.value]
+  const symbols: Record<CurrencyType, string> = { HKD: '亿港元', CNY: '亿人民币', USD: '亿美元', OTHER: '亿' }
+  return symbols[displayCurrency.value] || symbols.OTHER
 })
 
 onMounted(async () => {
@@ -290,7 +292,7 @@ onMounted(async () => {
   try {
     stock.value = await stockStore.getStockById(id)
     if (stock.value) {
-      displayCurrency.value = stock.value.market === 'A' ? 'CNY' : 'HKD'
+      displayCurrency.value = (stock.value.baseCurrency as CurrencyType) || (stock.value.market === 'A' ? 'CNY' : 'HKD')
     }
     try {
       const result = await fetchExchangeRates()
@@ -308,20 +310,22 @@ function toggleSortOrder() {
 }
 
 function convertCurrency(value: number, toCurrency: CurrencyType): number {
+  const sourceCurrency = stock.value?.baseCurrency || 'HKD'
+  if (sourceCurrency === toCurrency) return value
   const rate = exchangeRates.value[toCurrency] || 1
-  return value * rate
+  return value / rate
 }
 
 function formatDisplayCurrency(value: number): string {
   const converted = convertCurrency(value, displayCurrency.value)
-  const unitNames: Record<CurrencyType, string> = { HKD: '亿港元', CNY: '亿人民币', USD: '亿美元' }
-  return `${converted.toFixed(2)}${unitNames[displayCurrency.value]}`
+  const unitNames: Record<CurrencyType, string> = { HKD: '亿港元', CNY: '亿人民币', USD: '亿美元', OTHER: '亿' }
+  return `${converted.toFixed(2)}${unitNames[displayCurrency.value] || unitNames.OTHER}`
 }
 
 function convertAndFormat(value: number): string {
   const converted = convertCurrency(value, displayCurrency.value)
-  const unitNames: Record<CurrencyType, string> = { HKD: '亿港元', CNY: '亿人民币', USD: '亿美元' }
-  return `${converted.toFixed(2)}${unitNames[displayCurrency.value]}`
+  const unitNames: Record<CurrencyType, string> = { HKD: '亿港元', CNY: '亿人民币', USD: '亿美元', OTHER: '亿' }
+  return `${converted.toFixed(2)}${unitNames[displayCurrency.value] || unitNames.OTHER}`
 }
 
 function getValuationClass(value: number | null): string {

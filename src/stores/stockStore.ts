@@ -206,7 +206,7 @@ export const useStockStore = defineStore('stock', () => {
         valuation1,
         valuation2,
         yearlyData,
-        baseCurrency: 'HKD' as const,
+        baseCurrency: financialData.baseCurrency,
         source: 'api' as const,
         isUsingProjectedData: latestNetProfitProjected || latestFreeCashFlowProjected || latestNetCashProjected,
         netProfitProjected: latestNetProfitProjected,

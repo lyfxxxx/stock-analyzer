@@ -80,25 +80,59 @@ describe('A-Stock (600941 China Mobile) - Real API Integration', () => {
     console.log('PE ratio:', data.peRatio)
     console.log('PE ratio projected:', data.peRatioProjected)
     console.log('Report types:', data.reportTypes)
+    console.log('Base currency:', data.baseCurrency)
 
-    // Verify new fields exist
     expect(data.currentRatio).toBeDefined()
     expect(data.currentRatioProjected).toBeDefined()
     expect(data.peRatio).toBeDefined()
     expect(data.peRatioProjected).toBeDefined()
 
-    // Current ratio should be calculable
     const latestCR = data.currentRatio[0]
     if (latestCR !== null) {
       expect(latestCR).toBeGreaterThan(0)
       console.log(`Latest current ratio: ${latestCR}`)
     }
 
-    // PE ratio
     const latestPE = data.peRatio[0]
     if (latestPE !== null) {
       expect(latestPE).toBeGreaterThan(0)
       console.log(`Latest PE ratio: ${latestPE}`)
     }
+  })
+})
+
+describe('A-Stock (002027 Focus Media) - Real API Integration', () => {
+  it('should have correct CNY base currency for A-share stock', async () => {
+    const { fetchAStockFinancialReport } = await import('@/api/financialReportA')
+
+    const result = await fetchAStockFinancialReport('002027')
+
+    expect(result.error).toBeNull()
+    expect(result.data).not.toBeNull()
+
+    const data = result.data!
+
+    console.log('=== Focus Media 002027 Real API Data ===')
+    console.log('Years:', data.years)
+    console.log('Net profits (CNY):', data.netProfits)
+    console.log('Current ratio:', data.currentRatio)
+    console.log('Current ratio projected:', data.currentRatioProjected)
+    console.log('Base currency:', data.baseCurrency)
+    console.log('Currency type:', data.currencyType)
+
+    expect(data.baseCurrency).toBe('CNY')
+    expect(data.currencyType).toBe('CNY')
+
+    expect(data.currentRatio).toBeDefined()
+    expect(data.currentRatioProjected).toBeDefined()
+
+    const latestCR = data.currentRatio[0]
+    if (latestCR !== null) {
+      expect(latestCR).toBeGreaterThan(0)
+      console.log(`Latest current ratio: ${latestCR}`)
+    }
+
+    console.log('Report types:', data.reportTypes)
+    console.log('Years with data:', data.years.slice(0, 5))
   })
 })

@@ -260,11 +260,10 @@ export async function fetchAStockFinancialReport(
     }
 
     const { rates } = await fetchExchangeRates()
-    const toHKD = 1 / (rates['CNY'] || 1.10)
 
     console.log('========== A股财务数据获取开始 ==========')
     console.log(`股票代码: ${code}`)
-    console.log(`汇率 CNY -> HKD: 1 / ${rates['CNY'] || 1.10} = ${toHKD}`)
+    console.log(`汇率 HKD/CNY: CNY=${rates['CNY']}, USD=${rates['USD']}, HKD=${rates['HKD']}`)
 
     const { profitRatios, cashFlowRatios } = calculateSeasonalRatiosFromData(incomeStatement, cashFlow)
 
@@ -447,10 +446,10 @@ export async function fetchAStockFinancialReport(
 
       const monetaryFunds = balance?.MONETARYFUNDS || 0
       const tradeFinAsset = balance?.TRADE_FINASSET_NOTFVTPL || 0
-      const totalCash = toHundredMillion(monetaryFunds + tradeFinAsset) * toHKD
+      const totalCash = toHundredMillion(monetaryFunds + tradeFinAsset)
 
-      const shortLoan = toHundredMillion(balance?.SHORT_LOAN || 0) * toHKD
-      const longLoan = toHundredMillion(balance?.LONG_LOAN || 0) * toHKD
+      const shortLoan = toHundredMillion(balance?.SHORT_LOAN || 0)
+      const longLoan = toHundredMillion(balance?.LONG_LOAN || 0)
 
       let netProfitRaw = toHundredMillion(income.PARENT_NETPROFIT)
       let operatingCFRaw = toHundredMillion(cf?.NETCASH_OPERATE || 0)
@@ -480,9 +479,9 @@ export async function fetchAStockFinancialReport(
 
       console.log(`原始净利润: ${netProfitRaw}, 原始运营现金流: ${operatingCFRaw}, 资本开支: ${capExRaw}`)
 
-      const netProfit = netProfitRaw * toHKD
-      const operatingCF = operatingCFRaw * toHKD
-      const capEx = -Math.abs(capExRaw) * toHKD
+      const netProfit = netProfitRaw
+      const operatingCF = operatingCFRaw
+      const capEx = -Math.abs(capExRaw)
       const freeCashFlow = operatingCF - Math.abs(capEx)
       console.log(`最终自由现金流: ${freeCashFlow}`)
 
@@ -544,7 +543,7 @@ export async function fetchAStockFinancialReport(
         peRatio: netProfits.map(() => null),
         peRatioProjected: netProfits.map(() => false),
         currencyType: 'CNY' as CurrencyType,
-        baseCurrency: 'HKD',
+        baseCurrency: 'CNY',
         source: 'api',
         reportTypes: reportTypesArr,
         isProjected,

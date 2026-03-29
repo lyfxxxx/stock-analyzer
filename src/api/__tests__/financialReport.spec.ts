@@ -120,7 +120,7 @@ describe('financialReportA', () => {
       expect(result.data).not.toBeNull()
       expect(result.data?.years).toEqual([2024, 2023])
       expect(result.data?.currencyType).toBe('CNY')
-      expect(result.data?.baseCurrency).toBe('HKD')
+      expect(result.data?.baseCurrency).toBe('CNY')
       expect(result.data?.source).toBe('api')
       
       expect(result.data?.netProfits.length).toBe(2)
@@ -217,11 +217,10 @@ describe('financialReportA', () => {
       const result = await fetchAStockFinancialReport('002027')
 
       expect(result.data).not.toBeNull()
-      // A-stock data is in CNY, need to convert to HKD (divide by rate 1.10)
-      const cnyToHkd = 1 / 1.10
+      // A-stock data is in CNY (no conversion applied)
       const totalCashInYuan = 1000000000 + 500000000
-      const expectedInHKD = (totalCashInYuan / 100000000) * cnyToHkd
-      expect(result.data?.cashAndEquivalents[0]).toBeCloseTo(expectedInHKD, 1)
+      const expectedInCNY = totalCashInYuan / 100000000
+      expect(result.data?.cashAndEquivalents[0]).toBeCloseTo(expectedInCNY, 1)
     })
 
     it('should handle null values in API response', async () => {

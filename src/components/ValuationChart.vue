@@ -24,11 +24,9 @@ import { BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { ECharts, EChartsCoreOption } from 'echarts/core'
-import type { YearlyData } from '@/types/stock'
+import type { YearlyData, CurrencyType } from '@/types/stock'
 
 use([BarChart, GridComponent, TooltipComponent, CanvasRenderer])
-
-type CurrencyType = 'HKD' | 'CNY' | 'USD'
 
 const props = defineProps<{
   title: string
@@ -36,6 +34,7 @@ const props = defineProps<{
   dataType: 'freeCashFlow' | 'netProfit'
   displayCurrency?: CurrencyType
   exchangeRates?: Record<string, number>
+  sourceCurrency?: CurrencyType
 }>()
 
 const chartRef = ref<HTMLElement | null>(null)
@@ -47,13 +46,15 @@ const rates = ref<Record<string, number>>(defaultRates)
 
 function convertCurrency(value: number): number {
   const currency = props.displayCurrency || 'HKD'
+  const sourceCurrency = props.sourceCurrency || 'HKD'
+  if (sourceCurrency === currency) return value
   const exchangeRates = props.exchangeRates || defaultRates
   const rate = exchangeRates[currency] || 1
-  return value * rate
+  return value / rate
 }
 
 function getCurrencySymbol(): string {
-  const symbols: Record<CurrencyType, string> = { HKD: 'HK$', CNY: '¥', USD: '$' }
+  const symbols: Record<CurrencyType, string> = { HKD: 'HK$', CNY: '¥', USD: '$', OTHER: '$' }
   return symbols[currentCurrency.value]
 }
 

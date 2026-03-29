@@ -16,7 +16,7 @@ export interface StockData {
   yearlyData: YearlyData[]
   createdAt: number
   updatedAt: number
-  baseCurrency: 'HKD'
+  baseCurrency: CurrencyType
   rateSource?: 'api' | 'fallback'
   isUsingProjectedData?: boolean
   netProfitProjected?: boolean
@@ -54,7 +54,7 @@ export interface StockAnalysisResult {
   valuation1: number | null
   valuation2: number
   yearlyData: YearlyData[]
-  baseCurrency: 'HKD'
+  baseCurrency: CurrencyType
   rateSource?: 'api' | 'fallback'
   isUsingProjectedData?: boolean
   netProfitProjected?: boolean

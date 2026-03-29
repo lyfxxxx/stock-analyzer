@@ -15,7 +15,7 @@ export interface FinancialReportData {
   peRatio: (number | null)[]
   peRatioProjected: boolean[]
   currencyType: CurrencyType
-  baseCurrency: 'HKD'
+  baseCurrency: CurrencyType
   source: 'api'
   reportTypes: ReportType[]
   isProjected: boolean[]

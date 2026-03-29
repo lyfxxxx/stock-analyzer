@@ -383,6 +383,7 @@
               data-type="freeCashFlow"
               :display-currency="displayCurrency"
               :exchange-rates="exchangeRates"
+              :source-currency="previewData.baseCurrency"
             />
             <ValuationChart
               title="净利润趋势"
@@ -390,6 +391,7 @@
               data-type="netProfit"
               :display-currency="displayCurrency"
               :exchange-rates="exchangeRates"
+              :source-currency="previewData.baseCurrency"
             />
           </div>
 
@@ -416,11 +418,10 @@ import { useStockStore } from '@/stores/stockStore'
 import { useExcelParser, useValuation } from '@/composables/useExcelParser'
 import { validateStockCode } from '@/utils/validator'
 import { fetchExchangeRates } from '@/api/exchangeRate'
-import type { ExcelData, StockAnalysisResult } from '@/types/stock'
+import type { ExcelData, StockAnalysisResult, CurrencyType } from '@/types/stock'
 import ExcelUploader from '@/components/ExcelUploader.vue'
 import ValuationChart from '@/components/ValuationChart.vue'
 
-type CurrencyType = 'HKD' | 'CNY' | 'USD'
 type DataSourceMode = 'api' | 'manual'
 
 const router = useRouter()
@@ -521,7 +522,7 @@ onMounted(async () => {
         valuation1: stock.valuation1,
         valuation2: stock.valuation2,
         yearlyData: stock.yearlyData,
-        baseCurrency: 'HKD',
+        baseCurrency: stock.baseCurrency,
         isUsingProjectedData: stock.isUsingProjectedData || false
       }
     }
@@ -537,18 +538,21 @@ async function fetchExchangeRatesData() {
   }
 }
 
-function convertCurrency(value: number, toCurrency: CurrencyType): number {
+function convertCurrency(value: number, fromCurrency: CurrencyType, toCurrency: CurrencyType): number {
+  if (fromCurrency === toCurrency) return value
   const rate = exchangeRates.value[toCurrency] || 1
-  return value * rate
+  return value / rate
 }
 
 function formatDisplayCurrency(value: number | undefined): string {
   if (value === undefined || isNaN(value)) return '-'
-  const converted = convertCurrency(value, displayCurrency.value)
+  const sourceCurrency = previewData.value?.baseCurrency || 'HKD'
+  const converted = convertCurrency(value, sourceCurrency, displayCurrency.value)
   const unitNames: Record<CurrencyType, string> = {
     HKD: '亿港元',
     CNY: '亿人民币',
-    USD: '亿美元'
+    USD: '亿美元',
+    OTHER: '亿'
   }
   return `${converted.toFixed(2)}${unitNames[displayCurrency.value]}`
 }
@@ -730,7 +734,7 @@ async function fetchFinancialData() {
         valuation1: reportData.valuation1,
         valuation2: reportData.valuation2,
         yearlyData: reportData.yearlyData,
-        baseCurrency: 'HKD',
+        baseCurrency: reportData.baseCurrency,
         isUsingProjectedData: reportData.isUsingProjectedData,
         netProfitProjected: reportData.netProfitProjected ?? false,
         freeCashFlowProjected: reportData.freeCashFlowProjected ?? false,
@@ -738,6 +742,7 @@ async function fetchFinancialData() {
         currentRatioProjected: reportData.currentRatioProjected ?? false,
         peRatioProjected: reportData.peRatioProjected ?? false,
       }
+      displayCurrency.value = reportData.baseCurrency
       // 成功获取数据后，退出编辑模式并更新保存的状态
       isEditingCode.value = false
       // 更新保存的状态为当前最新值
