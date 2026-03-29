@@ -331,10 +331,13 @@ export function buildYearlyData(
   operatingCashFlow: number[],
   capitalExpenditure: number[],
   netProfits: number[],
-  isProjected?: boolean[]
+  isProjected?: boolean[],
+  netProfitProjected?: boolean[],
+  freeCashFlowProjected?: boolean[],
+  netCashProjected?: boolean[]
 ): YearlyData[] {
   const yearlyData: YearlyData[] = []
-  
+
   for (let i = 0; i < years.length; i++) {
     const year = years[i]
     if (year === undefined) continue
@@ -343,9 +346,16 @@ export function buildYearlyData(
       year,
       freeCashFlow: Math.round(fcf * 100) / 100,
       netProfit: Math.round((netProfits[i] ?? 0) * 100) / 100,
-      isProjected: isProjected?.[i] ?? false
+      isProjected: isProjected?.[i] ?? false,
+      netProfitProjected: netProfitProjected?.[i] ?? false,
+      freeCashFlowProjected: freeCashFlowProjected?.[i] ?? false,
+      netCashProjected: netCashProjected?.[i] ?? false
     })
   }
-  
-  return yearlyData.sort((a, b) => a.year - b.year)
+
+  return yearlyData.sort((a, b) => {
+    if (a.year !== b.year) return a.year - b.year
+    if (a.isProjected !== b.isProjected) return a.isProjected ? 1 : -1
+    return 0
+  })
 }

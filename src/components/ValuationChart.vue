@@ -88,10 +88,15 @@ function updateChart() {
   
   const sortedData = [...props.yearlyData].sort((a, b) => a.year - b.year)
   const years = sortedData.map(d => d.year.toString())
-  const values = sortedData.map(d => 
+  const values = sortedData.map(d =>
     convertCurrency(props.dataType === 'freeCashFlow' ? d.freeCashFlow : d.netProfit)
   )
-  const isProjected = sortedData.map(d => d.isProjected || false)
+  const isProjected = sortedData.map(d => {
+    if (props.dataType === 'freeCashFlow') {
+      return d.freeCashFlowProjected ?? d.isProjected ?? false
+    }
+    return d.netProfitProjected ?? d.isProjected ?? false
+  })
   
   const currencySymbol = getCurrencySymbol()
   
@@ -153,7 +158,7 @@ function updateChart() {
         const year = params[0].name
         const value = params[0].value
         const data = params[0].data
-        const isProj = data?.isProjected || false
+        const isProj = data?.isProjected ?? false
         const label = isProj ? ' (预测值)' : ''
         return `
           <div style="font-weight: 600; margin-bottom: 4px;">${year}年${label}</div>

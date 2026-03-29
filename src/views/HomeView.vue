@@ -15,7 +15,10 @@
           >
             <span v-if="isUpdatingAll" class="spinner-small"></span>
             <span v-else>↻</span>
-            更新全部
+            <span v-if="isUpdatingAll && stockStore.updateProgress.total > 0">
+              {{ stockStore.updateProgress.updated }}/{{ stockStore.updateProgress.total }}
+            </span>
+            <span v-else>更新全部</span>
           </button>
           <button class="add-button" @click="goToAdd">
             <span class="btn-icon">+</span>
@@ -113,13 +116,8 @@ async function refreshAllMarketCaps() {
   
   isUpdatingAll.value = true
   try {
-    for (const stock of stockStore.stocks) {
-      try {
-        await stockStore.updateStockWithRecalculation(stock.id)
-      } catch (e) {
-        console.error(`Failed to update ${stock.code}:`, e)
-      }
-    }
+    const ids = stockStore.stocks.map(s => s.id)
+    await stockStore.updateAllStocks(ids)
     updateRefreshDate()
   } finally {
     isUpdatingAll.value = false

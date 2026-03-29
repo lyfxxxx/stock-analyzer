@@ -358,6 +358,65 @@ describe('financialReportHK', () => {
       expect(result.data?.baseCurrency).toBe('HKD')
     })
 
+    it('should include latest year when three statements report dates are inconsistent', async () => {
+      const mockBalanceSheet = {
+        version: '1.0',
+        success: true,
+        result: {
+          pages: 1,
+          data: [
+            { SECUCODE: '00700.HK', SECURITY_CODE: '00700', REPORT_DATE: '2025-06-30 00:00:00', STD_ITEM_CODE: '004002010', STD_ITEM_NAME: '现金及等价物', AMOUNT: 1000000000 },
+            { SECUCODE: '00700.HK', SECURITY_CODE: '00700', REPORT_DATE: '2025-06-30 00:00:00', STD_ITEM_CODE: '004011010', STD_ITEM_NAME: '短期贷款', AMOUNT: 100000000 },
+            { SECUCODE: '00700.HK', SECURITY_CODE: '00700', REPORT_DATE: '2025-06-30 00:00:00', STD_ITEM_CODE: '004020001', STD_ITEM_NAME: '长期贷款', AMOUNT: 50000000 },
+            { SECUCODE: '00700.HK', SECURITY_CODE: '00700', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '004002010', STD_ITEM_NAME: '现金及等价物', AMOUNT: 900000000 },
+            { SECUCODE: '00700.HK', SECURITY_CODE: '00700', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '004011010', STD_ITEM_NAME: '短期贷款', AMOUNT: 80000000 },
+            { SECUCODE: '00700.HK', SECURITY_CODE: '00700', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '004020001', STD_ITEM_NAME: '长期贷款', AMOUNT: 40000000 },
+          ],
+          count: 6,
+        },
+      }
+
+      const mockIncomeStatement = {
+        version: '1.0',
+        success: true,
+        result: {
+          pages: 1,
+          data: [
+            { SECUCODE: '00700.HK', SECURITY_CODE: '00700', REPORT_DATE: '2025-12-31 00:00:00', STD_ITEM_CODE: '004025002', STD_ITEM_NAME: '股东应占溢利', AMOUNT: 2000000000 },
+            { SECUCODE: '00700.HK', SECURITY_CODE: '00700', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '004025002', STD_ITEM_NAME: '股东应占溢利', AMOUNT: 1800000000 },
+          ],
+          count: 2,
+        },
+      }
+
+      const mockCashFlow = {
+        version: '1.0',
+        success: true,
+        result: {
+          pages: 1,
+          data: [
+            { SECUCODE: '00700.HK', SECURITY_CODE: '00700', REPORT_DATE: '2025-12-31 00:00:00', STD_ITEM_CODE: '003999', STD_ITEM_NAME: '经营业务现金净额', AMOUNT: 2500000000 },
+            { SECUCODE: '00700.HK', SECURITY_CODE: '00700', REPORT_DATE: '2025-12-31 00:00:00', STD_ITEM_CODE: '005005', STD_ITEM_NAME: '购建固定资产', AMOUNT: 300000000 },
+            { SECUCODE: '00700.HK', SECURITY_CODE: '00700', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '003999', STD_ITEM_NAME: '经营业务现金净额', AMOUNT: 2200000000 },
+            { SECUCODE: '00700.HK', SECURITY_CODE: '00700', REPORT_DATE: '2024-12-31 00:00:00', STD_ITEM_CODE: '005005', STD_ITEM_NAME: '购建固定资产', AMOUNT: 250000000 },
+          ],
+          count: 4,
+        },
+      }
+
+      mockFetch
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockBalanceSheet) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockIncomeStatement) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockCashFlow) })
+
+      const result = await fetchHKStockFinancialReport('00700')
+
+      expect(result.error).toBeNull()
+      expect(result.data).not.toBeNull()
+      expect(result.data?.years).toEqual([2025, 2024])
+      expect(result.data?.isProjected).toEqual([false, false])
+    })
+
     it('should calculate total cash correctly (sum of cash-related fields)', async () => {
       const mockBalanceSheet = {
         version: '1.0',

@@ -164,10 +164,13 @@ export function formatCurrency(num: number): string {
  * Get report type from report date string
  */
 export function getReportType(reportDate: string): ReportType {
-  if (reportDate.includes('-12-31')) return 'annual'
-  if (reportDate.includes('-09-30')) return 'Q3'
-  if (reportDate.includes('-06-30')) return 'H1'
-  if (reportDate.includes('-03-31')) return 'Q1'
+  const dateStr = String(reportDate)
+  if (dateStr.includes('-12-31')) return 'annual'
+  if (dateStr.includes('-09-30')) return 'Q3'
+  if (dateStr.includes('-06-30')) return 'H1'
+  if (dateStr.includes('-03-31')) return 'Q1'
+  
+  // 对于港股等非 12-31 结账日的公司，如果不是以上标准季度末，默认作为年报处理（或至少不作为预测）
   return 'annual'
 }
 
@@ -270,7 +273,7 @@ export function extractYearFromReportDate(reportDate: string): number {
  * Check if report is annual (12-31)
  */
 export function isAnnualReport(reportDate: string): boolean {
-  return reportDate.includes('-12-31')
+  return getReportType(reportDate) === 'annual'
 }
 
 /**

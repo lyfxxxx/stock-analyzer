@@ -15,6 +15,9 @@ export interface FinancialReportData {
   source: 'api'
   reportTypes: ReportType[]
   isProjected: boolean[]
+  netProfitProjected: boolean[]
+  freeCashFlowProjected: boolean[]
+  netCashProjected: boolean[]
 }
 
 export interface FinancialReportError {

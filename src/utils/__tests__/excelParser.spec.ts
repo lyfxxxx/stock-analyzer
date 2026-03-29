@@ -239,9 +239,18 @@ describe('ExcelParser', () => {
       const result = buildYearlyData(years, operatingCashFlow, capitalExpenditure, netProfits)
 
       expect(result).toHaveLength(3)
-      expect(result[0]).toEqual({ year: 2021, freeCashFlow: 400, netProfit: 400, isProjected: false })
-      expect(result[1]).toEqual({ year: 2022, freeCashFlow: 450, netProfit: 450, isProjected: false })
-      expect(result[2]).toEqual({ year: 2023, freeCashFlow: 500, netProfit: 500, isProjected: false })
+      expect(result[0]).toEqual({
+        year: 2021, freeCashFlow: 400, netProfit: 400,
+        isProjected: false, netProfitProjected: false, freeCashFlowProjected: false, netCashProjected: false
+      })
+      expect(result[1]).toEqual({
+        year: 2022, freeCashFlow: 450, netProfit: 450,
+        isProjected: false, netProfitProjected: false, freeCashFlowProjected: false, netCashProjected: false
+      })
+      expect(result[2]).toEqual({
+        year: 2023, freeCashFlow: 500, netProfit: 500,
+        isProjected: false, netProfitProjected: false, freeCashFlowProjected: false, netCashProjected: false
+      })
     })
 
     it('should handle negative FCF', () => {
@@ -277,9 +286,18 @@ describe('ExcelParser', () => {
       const result = buildYearlyData(years, operatingCashFlow, capitalExpenditure, netProfits)
 
       expect(result).toHaveLength(3)
-      expect(result[0]).toEqual({ year: 2021, freeCashFlow: 400, netProfit: 400, isProjected: false })
-      expect(result[1]).toEqual({ year: 2022, freeCashFlow: 700, netProfit: 450, isProjected: false })
-      expect(result[2]).toEqual({ year: 2023, freeCashFlow: 0, netProfit: 500, isProjected: false })
+      expect(result[0]).toEqual({
+        year: 2021, freeCashFlow: 400, netProfit: 400,
+        isProjected: false, netProfitProjected: false, freeCashFlowProjected: false, netCashProjected: false
+      })
+      expect(result[1]).toEqual({
+        year: 2022, freeCashFlow: 700, netProfit: 450,
+        isProjected: false, netProfitProjected: false, freeCashFlowProjected: false, netCashProjected: false
+      })
+      expect(result[2]).toEqual({
+        year: 2023, freeCashFlow: 0, netProfit: 500,
+        isProjected: false, netProfitProjected: false, freeCashFlowProjected: false, netCashProjected: false
+      })
     })
 
     it('should round values to 2 decimal places', () => {

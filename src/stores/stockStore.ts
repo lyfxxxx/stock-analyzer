@@ -17,6 +17,9 @@ export const useStockStore = defineStore('stock', () => {
   
   const searchResults = ref<StockSearchResult[]>([])
   const isSearching = ref(false)
+  
+  // 新增：更新进度跟踪
+  const updateProgress = ref({ updated: 0, total: 0 })
 
   const sortedStocks = computed(() => {
     return [...stocks.value].sort((a, b) => b.updatedAt - a.updatedAt)
@@ -134,7 +137,10 @@ export const useStockStore = defineStore('stock', () => {
         financialData.operatingCashFlow,
         financialData.capitalExpenditure,
         financialData.netProfits,
-        financialData.isProjected
+        financialData.isProjected,
+        financialData.netProfitProjected,
+        financialData.freeCashFlowProjected,
+        financialData.netCashProjected
       )
 
       const latestIndex = 0
@@ -144,7 +150,9 @@ export const useStockStore = defineStore('stock', () => {
       const latestOperatingCF = financialData.operatingCashFlow[latestIndex] || 0
       const latestCapEx = financialData.capitalExpenditure[latestIndex] || 0
       const latestNetProfit = financialData.netProfits[latestIndex] || 0
-      const latestIsProjected = financialData.isProjected[latestIndex] || false
+      const latestNetProfitProjected = financialData.netProfitProjected[latestIndex] || false
+      const latestFreeCashFlowProjected = financialData.freeCashFlowProjected[latestIndex] || false
+      const latestNetCashProjected = financialData.netCashProjected[latestIndex] || false
 
       const netCash = calculateNetCash(latestCash, latestShortTermDebt, latestLongTermDebt)
       const freeCashFlow = calculateFreeCashFlow(latestOperatingCF, latestCapEx)
@@ -164,7 +172,10 @@ export const useStockStore = defineStore('stock', () => {
         yearlyData,
         baseCurrency: 'HKD' as const,
         source: 'api' as const,
-        isUsingProjectedData: latestIsProjected
+        isUsingProjectedData: latestNetProfitProjected || latestFreeCashFlowProjected || latestNetCashProjected,
+        netProfitProjected: latestNetProfitProjected,
+        freeCashFlowProjected: latestFreeCashFlowProjected,
+        netCashProjected: latestNetCashProjected,
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : '获取财报数据失败'
@@ -207,9 +218,14 @@ export const useStockStore = defineStore('stock', () => {
   }
 
   // 新增：更新市值并重新计算估值
-  async function updateStockWithRecalculation(id: string) {
-    loading.value = true
+  // loadAfterUpdate: 是否在更新后自动加载数据，批量更新时设为false以避免频繁重载
+  async function updateStockWithRecalculation(id: string, loadAfterUpdate: boolean = true) {
     error.value = null
+    
+    // 只有在非批量更新模式下才设置 loading 状态
+    if (loadAfterUpdate !== false) {
+      loading.value = true
+    }
     
     try {
       const stock = await stockDB.get(id)
@@ -240,17 +256,77 @@ export const useStockStore = defineStore('stock', () => {
         isUsingProjectedData: financialResult.isUsingProjectedData,
         updatedAt: Date.now()
       }
-      
       await stockDB.put(updatedStock)
-      await loadStocks()
+      
+      // 如果需要自动加载数据（单股票更新时），否则由调用者控制
+      if (loadAfterUpdate) {
+        await loadStocks()
+      }
       
       return updatedStock
     } catch (err) {
       error.value = err instanceof Error ? err.message : '更新并重新计算估值失败'
       throw err
     } finally {
-      loading.value = false
+      // 只有在非批量更新模式下才管理 loading 状态
+      // 批量更新时由 updateAllStocks 统一管理
+      if (loadAfterUpdate !== false) {
+        loading.value = false
+      }
     }
+  }
+  // 新增：并行更新多个股票（动态并发限制）
+  async function updateAllStocks(ids: string[]): Promise<{ success: number; failed: number }> {
+    loading.value = true
+    error.value = null
+    let success = 0
+    let failed = 0
+
+    // 动态计算并发限制：最低5个，最多 ids.length
+    // 公式: max(5, Math.ceil(ids.length / 3))
+    const CONCURRENCY_LIMIT = Math.max(5, Math.ceil(ids.length / 3))
+    
+    // 初始化进度
+    updateProgress.value = { updated: 0, total: ids.length }
+    
+    // 分批处理，每批最多 CONCURRENCY_LIMIT 个
+    for (let i = 0; i < ids.length; i += CONCURRENCY_LIMIT) {
+      const batch = ids.slice(i, i + CONCURRENCY_LIMIT)
+      
+      const results = await Promise.allSettled(
+        batch.map(async (id) => {
+          try {
+            // 批量更新时不自动加载数据，避免频繁重载导致UI闪烁
+            await updateStockWithRecalculation(id, false)
+            return { id, success: true }
+          } catch (err) {
+            console.error(`Failed to update ${id}:`, err)
+            return { id, success: false }
+          }
+        })
+      )
+      
+      // 统计结果并更新进度
+      results.forEach((result) => {
+        if (result.status === 'fulfilled' && result.value.success) {
+          success++
+        } else {
+          failed++
+        }
+      })
+      
+      // 更新进度
+      updateProgress.value = { updated: success + failed, total: ids.length }
+    }
+    
+    // 重新加载所有股票数据（只在最后加载一次）
+    await loadStocks()
+    
+    // 清除进度
+    updateProgress.value = { updated: 0, total: 0 }
+    
+    loading.value = false
+    return { success, failed }
   }
 
   async function updateStock(id: string, data: { name: string; marketCap: number }) {
@@ -348,6 +424,7 @@ export const useStockStore = defineStore('stock', () => {
     isApiAvailable,
     searchResults,
     isSearching,
+    updateProgress,
     
     sortedStocks,
     stockCount,
@@ -362,6 +439,7 @@ export const useStockStore = defineStore('stock', () => {
     clearError,
     updateStockMarketCap,
     updateStockWithRecalculation,
+    updateAllStocks,
     updateStock,
     recalculateStock,
     searchStocks,

@@ -454,12 +454,13 @@ export async function fetchHKStockFinancialReport(
     console.log('净利润季节性比例:', profitRatios)
     console.log('现金流季节性比例:', cashFlowRatios)
 
-    const allItems = [...balanceSheet, ...incomeStatement, ...cashFlow]
-    const reportInfoByYear = getLatestReportInfoByYear(allItems)
+    const balanceReportInfoByYear = getLatestReportInfoByYear(balanceSheet)
+    const incomeReportInfoByYear = getLatestReportInfoByYear(incomeStatement)
+    const cashFlowReportInfoByYear = getLatestReportInfoByYear(cashFlow)
 
-    const balanceByYear = parseBalanceSheetByYearWithReportType(balanceSheet, reportInfoByYear)
-    const incomeByYear = parseIncomeStatementByYearWithReportType(incomeStatement, reportInfoByYear)
-    const cashFlowByYear = parseCashFlowByYearWithReportType(cashFlow, reportInfoByYear)
+    const balanceByYear = parseBalanceSheetByYearWithReportType(balanceSheet, balanceReportInfoByYear)
+    const incomeByYear = parseIncomeStatementByYearWithReportType(incomeStatement, incomeReportInfoByYear)
+    const cashFlowByYear = parseCashFlowByYearWithReportType(cashFlow, cashFlowReportInfoByYear)
 
     const allYears = new Set<number>()
     balanceByYear.forEach((_, year) => allYears.add(year))
@@ -593,66 +594,82 @@ export async function fetchHKStockFinancialReport(
     const capitalExpenditure: number[] = []
     const reportTypes: ReportType[] = []
     const isProjected: boolean[] = []
+    const netProfitProjected: boolean[] = []
+    const freeCashFlowProjected: boolean[] = []
+    const netCashProjected: boolean[] = []
 
     for (const year of sortedYears) {
       const balance = balanceByYear.get(year)
       const income = incomeByYear.get(year)
       const cf = cashFlowByYear.get(year)
 
-      if (!balance || !income || !cf) {
+      // 至少要有利润表，否则跳过该年份
+      if (!income) {
         continue
       }
 
-      const isYearProjected = !isAnnualReport(income.reportDate) ||
-                              !isAnnualReport(cf.reportDate)
+      const balanceItem = balance
+      const incomeItem = income
+      const cfItem = cf
 
-      let netProfitRaw = income.shareholderProfit
-      let operatingCFRaw = cf.operatingCashFlow
-      let capExRaw = cf.capitalExpenditure
+      const incomeReportType = incomeItem.reportType
+      const balanceReportType = balanceItem?.reportType || 'Q3'
+      const cashFlowReportType = cfItem?.reportType || 'Q3' // 默认 Q3 以触发预测
+
+      // 只有当利润表不是年报时，才将年份标记为预测值
+      // 现金流即使只有H1，也可以用TTM预测，不影响年份的"实际/预测"标记
+      const isYearProjected = incomeReportType !== 'annual'
+
+      let netProfitRaw = incomeItem.shareholderProfit
+      let operatingCFRaw = cfItem?.operatingCashFlow || 0
+      let capExRaw = cfItem?.capitalExpenditure || 0
 
       console.log(`========== ${year}年度预测计算 ==========`)
-      console.log(`报告类型: ${income.reportType}, ${cf.reportType}`)
+      console.log(`报告类型: ${incomeReportType}, ${cashFlowReportType}`)
       console.log(`原始净利润: ${netProfitRaw}, 原始运营现金流: ${operatingCFRaw}, 原始资本开支: ${capExRaw}`)
 
       // 对于预测年份（非年报），使用TTM预测值
-      if (income.reportType !== 'annual') {
+      if (incomeReportType !== 'annual') {
         if (currentProfitTTM !== null && profitTTMPrediction.confidence !== 'low') {
           // 使用当前TTM作为预测值（TTM本身就是滚动12个月数据，更接近真实年度值）
           netProfitRaw = currentProfitTTM
           console.log(`使用当前TTM作为净利润预测: ${netProfitRaw}`)
         } else {
           // 后备：使用原有季节性比例算法
-          netProfitRaw = projectValue(netProfitRaw, income.reportType, profitRatios)
+          netProfitRaw = projectValue(netProfitRaw, incomeReportType, profitRatios)
           console.log(`使用原有算法预测净利润: ${netProfitRaw}`)
         }
       }
 
-      if (cf.reportType !== 'annual') {
+      if (cashFlowReportType !== 'annual') {
         if (currentCFTTM !== null && cfTTMPrediction.confidence !== 'low') {
           // 使用当前TTM作为预测值
           operatingCFRaw = currentCFTTM
           console.log(`使用当前TTM作为运营现金流预测: ${operatingCFRaw}`)
         } else {
           // 后备：使用原有季节性比例算法
-          operatingCFRaw = projectValue(operatingCFRaw, cf.reportType, cashFlowRatios)
+          operatingCFRaw = projectValue(operatingCFRaw, cashFlowReportType, cashFlowRatios)
           console.log(`使用原有算法预测运营现金流: ${operatingCFRaw}`)
         }
         
-        capExRaw = projectValue(capExRaw, cf.reportType, cashFlowRatios)
+        capExRaw = projectValue(capExRaw, cashFlowReportType, cashFlowRatios)
       }
 
       const freeCashFlow = operatingCFRaw - Math.abs(capExRaw)
       console.log(`最终自由现金流: ${operatingCFRaw} - ${Math.abs(capExRaw)} = ${freeCashFlow}`)
 
       years.push(year)
-      cashAndEquivalents.push(Math.round(balance.cashAndEquivalents * toHKD * 100) / 100)
-      shortTermDebt.push(Math.round(balance.shortTermLoan * toHKD * 100) / 100)
-      longTermDebt.push(Math.round(balance.longTermLoan * toHKD * 100) / 100)
+      cashAndEquivalents.push(Math.round((balanceItem?.cashAndEquivalents || 0) * toHKD * 100) / 100)
+      shortTermDebt.push(Math.round((balanceItem?.shortTermLoan || 0) * toHKD * 100) / 100)
+      longTermDebt.push(Math.round((balanceItem?.longTermLoan || 0) * toHKD * 100) / 100)
       netProfits.push(Math.round(netProfitRaw * toHKD * 100) / 100)
       operatingCashFlow.push(Math.round(operatingCFRaw * toHKD * 100) / 100)
       capitalExpenditure.push(Math.round(capExRaw * toHKD * 100) / 100)
       reportTypes.push('annual')
       isProjected.push(isYearProjected)
+      netProfitProjected.push(incomeReportType !== 'annual')
+      freeCashFlowProjected.push(cashFlowReportType !== 'annual')
+      netCashProjected.push(balanceReportType !== 'annual')
     }
 
     console.log('========== 年度数据处理完成 ==========')
@@ -675,6 +692,9 @@ export async function fetchHKStockFinancialReport(
     console.log('资本开支:', capitalExpenditure)
     console.log('自由现金流(计算值):', netProfits.map((np, i) => (operatingCashFlow[i] || 0) - Math.abs(capitalExpenditure[i] || 0)))
     console.log('是否为预测数据:', isProjected)
+    console.log('净利润是否为预测:', netProfitProjected)
+    console.log('自由现金流是否为预测:', freeCashFlowProjected)
+    console.log('净现金是否为预测:', netCashProjected)
     console.log('========== 财务数据获取结束 ==========')
 
     return {
@@ -691,6 +711,9 @@ export async function fetchHKStockFinancialReport(
         source: 'api',
         reportTypes,
         isProjected,
+        netProfitProjected,
+        freeCashFlowProjected,
+        netCashProjected,
       },
       error: null,
     }

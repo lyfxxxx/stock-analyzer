@@ -45,14 +45,14 @@
         <div class="overview-card" :class="{ 'projected': stock.isUsingProjectedData }">
           <span class="label">
             自由现金流
-            <span v-if="stock.isUsingProjectedData" class="projected-badge">预测</span>
+            <span v-if="stock.freeCashFlowProjected" class="projected-badge">预测</span>
           </span>
           <span class="value">{{ formatDisplayCurrency(stock.freeCashFlow) }}</span>
         </div>
-        <div class="overview-card" :class="{ 'projected': stock.isUsingProjectedData }">
+        <div class="overview-card" :class="{ 'projected': stock.netProfitProjected }">
           <span class="label">
             净利润
-            <span v-if="stock.isUsingProjectedData" class="projected-badge">预测</span>
+            <span v-if="stock.netProfitProjected" class="projected-badge">预测</span>
           </span>
           <span class="value">{{ formatDisplayCurrency(stock.netProfit) }}</span>
         </div>

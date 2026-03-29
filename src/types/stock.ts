@@ -17,6 +17,9 @@ export interface StockData {
   baseCurrency: 'HKD'
   rateSource?: 'api' | 'fallback'
   isUsingProjectedData?: boolean
+  netProfitProjected?: boolean
+  freeCashFlowProjected?: boolean
+  netCashProjected?: boolean
 }
 
 export interface YearlyData {
@@ -24,6 +27,9 @@ export interface YearlyData {
   freeCashFlow: number
   netProfit: number
   isProjected?: boolean
+  netProfitProjected?: boolean
+  freeCashFlowProjected?: boolean
+  netCashProjected?: boolean
 }
 
 export interface StockAnalysisResult {
@@ -41,6 +47,9 @@ export interface StockAnalysisResult {
   baseCurrency: 'HKD'
   rateSource?: 'api' | 'fallback'
   isUsingProjectedData?: boolean
+  netProfitProjected?: boolean
+  freeCashFlowProjected?: boolean
+  netCashProjected?: boolean
 }
 
 export interface ExcelData {
