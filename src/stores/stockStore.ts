@@ -5,7 +5,7 @@ import { stockDB } from '@/db'
 import { fetchEastMoneyStockInfo, testEastMoneyAPI, searchStocksByName } from '@/api/eastmoney'
 import { fetchAStockFinancialReport } from '@/api/financialReportA'
 import { fetchHKStockFinancialReport } from '@/api/financialReportHK'
-import { calculateNetCash, calculateFreeCashFlow, calculateValuations } from '@/utils/calculator'
+import { calculateNetCash, calculateFreeCashFlow, calculateValuations, calculatePERatio } from '@/utils/calculator'
 import { buildYearlyData } from '@/utils/excelParser'
 
 export const useStockStore = defineStore('stock', () => {
@@ -34,13 +34,40 @@ export const useStockStore = defineStore('stock', () => {
     error.value = null
     try {
       await stockDB.init()
-      stocks.value = await stockDB.getAll()
+      const rawStocks = await stockDB.getAll()
+      stocks.value = rawStocks.map(normalizeStockData)
     } catch (err) {
       error.value = err instanceof Error ? err.message : '加载数据失败'
       console.error('Load stocks error:', err)
     } finally {
       loading.value = false
     }
+  }
+
+  function normalizeStockData(stock: Record<string, any>): StockData {
+    const normalized = stock as StockData
+    if (normalized.netProfitProjected === undefined) {
+      normalized.netProfitProjected = normalized.isUsingProjectedData ?? false
+    }
+    if (normalized.freeCashFlowProjected === undefined) {
+      normalized.freeCashFlowProjected = normalized.isUsingProjectedData ?? false
+    }
+    if (normalized.netCashProjected === undefined) {
+      normalized.netCashProjected = normalized.isUsingProjectedData ?? false
+    }
+    if (normalized.currentRatio === undefined) {
+      normalized.currentRatio = null
+    }
+    if (normalized.currentRatioProjected === undefined) {
+      normalized.currentRatioProjected = false
+    }
+    if (normalized.peRatio === undefined) {
+      normalized.peRatio = null
+    }
+    if (normalized.peRatioProjected === undefined) {
+      normalized.peRatioProjected = false
+    }
+    return normalized
   }
 
   async function addStock(stock: StockData) {
@@ -78,12 +105,7 @@ export const useStockStore = defineStore('stock', () => {
       await stockDB.init()
       const stock = await stockDB.get(id)
       if (!stock) return null
-      if (stock.netProfitProjected === undefined) {
-        stock.netProfitProjected = stock.isUsingProjectedData ?? false
-        stock.freeCashFlowProjected = stock.isUsingProjectedData ?? false
-        stock.netCashProjected = stock.isUsingProjectedData ?? false
-      }
-      return stock
+      return normalizeStockData(stock)
     } catch (err) {
       console.error('Get stock error:', err)
       return null
@@ -140,17 +162,6 @@ export const useStockStore = defineStore('stock', () => {
       }
       
       const financialData = reportResult.data
-      
-      const yearlyData = buildYearlyData(
-        financialData.years,
-        financialData.operatingCashFlow,
-        financialData.capitalExpenditure,
-        financialData.netProfits,
-        financialData.isProjected,
-        financialData.netProfitProjected,
-        financialData.freeCashFlowProjected,
-        financialData.netCashProjected
-      )
 
       const latestIndex = 0
       const latestCash = financialData.cashAndEquivalents[latestIndex] || 0
@@ -165,6 +176,7 @@ export const useStockStore = defineStore('stock', () => {
 
       const netCash = calculateNetCash(latestCash, latestShortTermDebt, latestLongTermDebt)
       const freeCashFlow = calculateFreeCashFlow(latestOperatingCF, latestCapEx)
+      const peRatio = calculatePERatio(marketCap, latestNetProfit)
       const { valuation1, valuation2 } = calculateValuations(
         marketCap,
         netCash,
@@ -172,10 +184,25 @@ export const useStockStore = defineStore('stock', () => {
         latestNetProfit
       )
 
+      const yearlyData = buildYearlyData(
+        financialData.years,
+        financialData.operatingCashFlow,
+        financialData.capitalExpenditure,
+        financialData.netProfits,
+        financialData.isProjected,
+        financialData.netProfitProjected,
+        financialData.freeCashFlowProjected,
+        financialData.netCashProjected,
+        financialData.currentRatioProjected,
+        financialData.peRatioProjected
+      )
+
       return {
         netCash,
         freeCashFlow,
         netProfit: latestNetProfit,
+        currentRatio: financialData.currentRatio[0] ?? null,
+        peRatio,
         valuation1,
         valuation2,
         yearlyData,
@@ -185,6 +212,8 @@ export const useStockStore = defineStore('stock', () => {
         netProfitProjected: latestNetProfitProjected,
         freeCashFlowProjected: latestFreeCashFlowProjected,
         netCashProjected: latestNetCashProjected,
+        currentRatioProjected: financialData.currentRatioProjected[0] ?? false,
+        peRatioProjected: financialData.peRatioProjected[0] ?? false,
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : '获取财报数据失败'
@@ -262,6 +291,8 @@ export const useStockStore = defineStore('stock', () => {
         netCash: financialResult.netCash,
         freeCashFlow: financialResult.freeCashFlow,
         netProfit: financialResult.netProfit,
+        currentRatio: financialResult.currentRatio,
+        peRatio: financialResult.peRatio,
         valuation1: financialResult.valuation1,
         valuation2: financialResult.valuation2,
         yearlyData: financialResult.yearlyData,
@@ -269,6 +300,8 @@ export const useStockStore = defineStore('stock', () => {
         netProfitProjected: financialResult.netProfitProjected,
         freeCashFlowProjected: financialResult.freeCashFlowProjected,
         netCashProjected: financialResult.netCashProjected,
+        currentRatioProjected: financialResult.currentRatioProjected,
+        peRatioProjected: financialResult.peRatioProjected,
         updatedAt: Date.now()
       }
       await stockDB.put(updatedStock)

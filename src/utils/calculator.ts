@@ -78,6 +78,35 @@ export function calculateValuations(
 }
 
 /**
+ * Calculate current ratio = Current Assets / Current Liabilities
+ * Returns null if either value is 0 or null
+ */
+export function calculateCurrentRatio(
+  currentAssets: number | null,
+  currentLiabilities: number | null
+): number | null {
+  if (!currentAssets || !currentLiabilities) return null
+  if (currentAssets === 0 || currentLiabilities === 0) return null
+  const ratio = currentAssets / currentLiabilities
+  return Math.round(ratio * 100) / 100
+}
+
+/**
+ * Calculate PE ratio = Market Cap / Net Profit
+ * Returns null if either value is 0, null, or negative
+ */
+export function calculatePERatio(
+  marketCap: number | null,
+  netProfit: number | null
+): number | null {
+  if (!marketCap || !netProfit) return null
+  if (marketCap === 0 || netProfit === 0) return null
+  if (netProfit < 0) return null
+  const ratio = marketCap / netProfit
+  return Math.round(ratio * 10) / 10
+}
+
+/**
  * Calculate growth rate from recent years
  * Uses average of year-over-year growth rates
  */

@@ -516,6 +516,8 @@ onMounted(async () => {
         netCash: stock.netCash,
         freeCashFlow: stock.freeCashFlow,
         netProfit: stock.netProfit,
+        currentRatio: stock.currentRatio ?? null,
+        peRatio: stock.peRatio ?? null,
         valuation1: stock.valuation1,
         valuation2: stock.valuation2,
         yearlyData: stock.yearlyData,
@@ -720,7 +722,21 @@ async function fetchFinancialData() {
         code: form.code,
         market: form.market,
         marketCap: form.marketCap,
-        ...reportData
+        netCash: reportData.netCash,
+        freeCashFlow: reportData.freeCashFlow,
+        netProfit: reportData.netProfit,
+        currentRatio: reportData.currentRatio ?? null,
+        peRatio: reportData.peRatio ?? null,
+        valuation1: reportData.valuation1,
+        valuation2: reportData.valuation2,
+        yearlyData: reportData.yearlyData,
+        baseCurrency: 'HKD',
+        isUsingProjectedData: reportData.isUsingProjectedData,
+        netProfitProjected: reportData.netProfitProjected ?? false,
+        freeCashFlowProjected: reportData.freeCashFlowProjected ?? false,
+        netCashProjected: reportData.netCashProjected ?? false,
+        currentRatioProjected: reportData.currentRatioProjected ?? false,
+        peRatioProjected: reportData.peRatioProjected ?? false,
       }
       // 成功获取数据后，退出编辑模式并更新保存的状态
       isEditingCode.value = false

@@ -88,6 +88,8 @@ export function useValuation() {
     netCash: number
     freeCashFlow: number
     netProfit: number
+    currentRatio: number | null
+    peRatio: number | null
     valuation1: number | null
     valuation2: number
     yearlyData: YearlyData[]
@@ -139,6 +141,8 @@ export function useValuation() {
         netCash,
         freeCashFlow: currentFreeCashFlow,
         netProfit: currentNetProfit,
+        currentRatio: null,
+        peRatio: null,
         valuation1,
         valuation2,
         yearlyData,

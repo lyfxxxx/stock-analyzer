@@ -44,6 +44,43 @@
           <span class="formula-hint">(市值-净现金)/净利润</span>
         </div>
       </div>
+
+      <div class="metric-row">
+        <div class="metric-item">
+          <span class="label">
+            PE
+            <span class="tooltip-trigger">
+              ⓘ
+              <span class="tooltip-text">PE = 市值 / 净利润</span>
+            </span>
+          </span>
+          <span class="value">
+            <template v-if="stock.peRatio !== null">
+              {{ stock.peRatio.toFixed(1) }}x
+            </template>
+            <template v-else>
+              <span class="na-value">N/A</span>
+            </template>
+          </span>
+        </div>
+        <div class="metric-item">
+          <span class="label">
+            流动比率
+            <span class="tooltip-trigger">
+              ⓘ
+              <span class="tooltip-text">流动比率 = 流动资产 / 流动负债</span>
+            </span>
+          </span>
+          <span class="value">
+            <template v-if="stock.currentRatio !== null">
+              {{ stock.currentRatio.toFixed(2) }}
+            </template>
+            <template v-else>
+              <span class="na-value">N/A</span>
+            </template>
+          </span>
+        </div>
+      </div>
     </div>
     
     <div class="card-footer">
@@ -247,6 +284,38 @@ function getValuationClass(value: number | null): string {
   color: var(--text-muted);
 }
 
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+  gap: 16px;
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.metric-item .label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.metric-item .value {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-primary);
+}
+
+.na-value {
+  color: var(--text-muted);
+}
+
 .na-value {
   color: var(--text-muted);
 }
@@ -256,7 +325,6 @@ function getValuationClass(value: number | null): string {
 }
 
 .tooltip-trigger {
-  margin-left: 4px;
   font-size: 12px;
   color: var(--text-secondary);
   cursor: help;

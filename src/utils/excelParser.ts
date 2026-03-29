@@ -334,7 +334,9 @@ export function buildYearlyData(
   isProjected?: boolean[],
   netProfitProjected?: boolean[],
   freeCashFlowProjected?: boolean[],
-  netCashProjected?: boolean[]
+  netCashProjected?: boolean[],
+  currentRatioProjected?: boolean[],
+  peRatioProjected?: boolean[]
 ): YearlyData[] {
   const yearlyData: YearlyData[] = []
 
@@ -349,7 +351,9 @@ export function buildYearlyData(
       isProjected: isProjected?.[i] ?? false,
       netProfitProjected: netProfitProjected?.[i] ?? false,
       freeCashFlowProjected: freeCashFlowProjected?.[i] ?? false,
-      netCashProjected: netCashProjected?.[i] ?? false
+      netCashProjected: netCashProjected?.[i] ?? false,
+      currentRatioProjected: currentRatioProjected?.[i] ?? false,
+      peRatioProjected: peRatioProjected?.[i] ?? false,
     })
   }
 

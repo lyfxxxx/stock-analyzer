@@ -10,6 +10,10 @@ export interface FinancialReportData {
   longTermDebt: number[]
   operatingCashFlow: number[]
   capitalExpenditure: number[]
+  currentRatio: (number | null)[]
+  currentRatioProjected: boolean[]
+  peRatio: (number | null)[]
+  peRatioProjected: boolean[]
   currencyType: CurrencyType
   baseCurrency: 'HKD'
   source: 'api'
@@ -37,6 +41,8 @@ export interface AStockBalanceSheetItem {
   TRADE_FINASSET_NOTFVTPL: number | null
   SHORT_LOAN: number | null
   LONG_LOAN: number | null
+  TOTAL_CURRENT_ASSETS: number | null
+  TOTAL_CURRENT_LIAB: number | null
 }
 
 export interface AStockIncomeStatementItem {
@@ -92,7 +98,9 @@ export const HK_BALANCE_SHEET_CODES = {
   MEDIUM_LONG_TERM_DEPOSITS: '004001030',
   SHORT_TERM_INVESTMENTS: '004002008',
   RESTRICTED_CASH: '004002009',
+  TOTAL_CURRENT_ASSETS: '004002999',
   SHORT_TERM_LOAN: '004011010',
+  TOTAL_CURRENT_LIAB: '004011999',
   LONG_TERM_LOAN: '004020001',
 } as const
 

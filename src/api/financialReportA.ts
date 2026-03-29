@@ -19,6 +19,7 @@ import {
   calculateHistoryTTM,
   calculateCurrentTTM,
   predictWithTTM,
+  calculateCurrentRatio,
   type FlexibleYearlyData,
   type FlexibleCurrentData,
   type ReportPeriodType,
@@ -416,6 +417,8 @@ export async function fetchAStockFinancialReport(
     const netProfitProjected: boolean[] = []
     const freeCashFlowProjected: boolean[] = []
     const netCashProjected: boolean[] = []
+    const currentRatio: (number | null)[] = []
+    const currentRatioProjected: boolean[] = []
 
     for (const year of sortedYears) {
       const balanceEntry = balanceByYear.get(year)
@@ -495,6 +498,13 @@ export async function fetchAStockFinancialReport(
       netProfitProjected.push(incomeReportType !== 'annual')
       freeCashFlowProjected.push(cashFlowReportType !== 'annual')
       netCashProjected.push(balanceReportType !== 'annual')
+
+      const cr = calculateCurrentRatio(
+        balance?.TOTAL_CURRENT_ASSETS ?? null,
+        balance?.TOTAL_CURRENT_LIAB ?? null
+      )
+      currentRatio.push(cr)
+      currentRatioProjected.push(balanceReportType !== 'annual')
     }
 
     console.log('========== 年度数据处理完成 ==========')
@@ -529,6 +539,10 @@ export async function fetchAStockFinancialReport(
         longTermDebt,
         operatingCashFlow,
         capitalExpenditure,
+        currentRatio,
+        currentRatioProjected,
+        peRatio: netProfits.map(() => null),
+        peRatioProjected: netProfits.map(() => false),
         currencyType: 'CNY' as CurrencyType,
         baseCurrency: 'HKD',
         source: 'api',

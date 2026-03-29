@@ -62,6 +62,34 @@
           </span>
           <span class="value">{{ formatDisplayCurrency(stock.netProfit) }}</span>
         </div>
+        <div class="overview-card">
+          <span class="label">
+            PE
+            <span class="tooltip-trigger">
+              ⓘ
+              <span class="tooltip-text">PE = 市值 / 净利润</span>
+            </span>
+            <span v-if="stock.peRatioProjected" class="projected-badge">预测</span>
+          </span>
+          <span class="value">
+            <template v-if="stock.peRatio !== null">{{ stock.peRatio.toFixed(1) }}x</template>
+            <template v-else>N/A</template>
+          </span>
+        </div>
+        <div class="overview-card">
+          <span class="label">
+            流动比率
+            <span class="tooltip-trigger">
+              ⓘ
+              <span class="tooltip-text">流动比率 = 流动资产 / 流动负债</span>
+            </span>
+            <span v-if="stock.currentRatioProjected" class="projected-badge">预测</span>
+          </span>
+          <span class="value">
+            <template v-if="stock.currentRatio !== null">{{ stock.currentRatio.toFixed(2) }}</template>
+            <template v-else>N/A</template>
+          </span>
+        </div>
       </div>
 
       <!-- Valuation Results -->

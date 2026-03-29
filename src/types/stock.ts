@@ -9,6 +9,8 @@ export interface StockData {
   netCash: number
   freeCashFlow: number
   netProfit: number
+  currentRatio: number | null
+  peRatio: number | null
   valuation1: number | null
   valuation2: number
   yearlyData: YearlyData[]
@@ -20,6 +22,8 @@ export interface StockData {
   netProfitProjected?: boolean
   freeCashFlowProjected?: boolean
   netCashProjected?: boolean
+  currentRatioProjected?: boolean
+  peRatioProjected?: boolean
 }
 
 export interface YearlyData {
@@ -30,6 +34,10 @@ export interface YearlyData {
   netProfitProjected?: boolean
   freeCashFlowProjected?: boolean
   netCashProjected?: boolean
+  currentRatio?: number | null
+  currentRatioProjected?: boolean
+  peRatio?: number | null
+  peRatioProjected?: boolean
 }
 
 export interface StockAnalysisResult {
@@ -41,6 +49,8 @@ export interface StockAnalysisResult {
   netCash: number
   freeCashFlow: number
   netProfit: number
+  currentRatio: number | null
+  peRatio: number | null
   valuation1: number | null
   valuation2: number
   yearlyData: YearlyData[]
@@ -50,6 +60,8 @@ export interface StockAnalysisResult {
   netProfitProjected?: boolean
   freeCashFlowProjected?: boolean
   netCashProjected?: boolean
+  currentRatioProjected?: boolean
+  peRatioProjected?: boolean
 }
 
 export interface ExcelData {

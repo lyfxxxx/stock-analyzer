@@ -1,5 +1,6 @@
 import { financialReportRateLimiter } from '@/utils/rateLimiter'
 import { fetchExchangeRates } from './exchangeRate'
+import { calculateCurrentRatio } from '@/utils/calculator'
 import type {
   FinancialReportData,
   FinancialReportError,
@@ -32,7 +33,9 @@ const BALANCE_CODES = {
   MEDIUM_LONG_TERM_DEPOSITS: '004001030',
   SHORT_TERM_INVESTMENTS: '004002008',
   RESTRICTED_CASH: '004002009',
+  TOTAL_CURRENT_ASSETS: '004002999',
   SHORT_TERM_LOAN: '004011010',
+  TOTAL_CURRENT_LIAB: '004011999',
   LONG_TERM_LOAN: '004020001',
 } as const
 
@@ -158,6 +161,8 @@ interface YearlyBalanceData {
   cashAndEquivalents: number
   shortTermLoan: number
   longTermLoan: number
+  totalCurrentAssets: number | null
+  totalCurrentLiabilities: number | null
   reportDate: string
   reportType: ReportType
 }
@@ -181,6 +186,8 @@ function parseBalanceSheetByYearWithReportType(
         cashAndEquivalents: 0,
         shortTermLoan: 0,
         longTermLoan: 0,
+        totalCurrentAssets: null,
+        totalCurrentLiabilities: null,
         reportDate: reportInfo.reportDate,
         reportType: reportInfo.reportType,
       })
@@ -202,6 +209,12 @@ function parseBalanceSheetByYearWithReportType(
         break
       case BALANCE_CODES.LONG_TERM_LOAN:
         yearData.longTermLoan = amount
+        break
+      case BALANCE_CODES.TOTAL_CURRENT_ASSETS:
+        yearData.totalCurrentAssets = amount
+        break
+      case BALANCE_CODES.TOTAL_CURRENT_LIAB:
+        yearData.totalCurrentLiabilities = amount
         break
     }
   }
@@ -597,6 +610,8 @@ export async function fetchHKStockFinancialReport(
     const netProfitProjected: boolean[] = []
     const freeCashFlowProjected: boolean[] = []
     const netCashProjected: boolean[] = []
+    const currentRatio: (number | null)[] = []
+    const currentRatioProjected: boolean[] = []
 
     for (const year of sortedYears) {
       const balance = balanceByYear.get(year)
@@ -670,6 +685,13 @@ export async function fetchHKStockFinancialReport(
       netProfitProjected.push(incomeReportType !== 'annual')
       freeCashFlowProjected.push(cashFlowReportType !== 'annual')
       netCashProjected.push(balanceReportType !== 'annual')
+
+      const cr = calculateCurrentRatio(
+        balanceItem?.totalCurrentAssets ?? null,
+        balanceItem?.totalCurrentLiabilities ?? null
+      )
+      currentRatio.push(cr)
+      currentRatioProjected.push(balanceReportType !== 'annual')
     }
 
     console.log('========== 年度数据处理完成 ==========')
@@ -695,6 +717,8 @@ export async function fetchHKStockFinancialReport(
     console.log('净利润是否为预测:', netProfitProjected)
     console.log('自由现金流是否为预测:', freeCashFlowProjected)
     console.log('净现金是否为预测:', netCashProjected)
+    console.log('流动比率:', currentRatio)
+    console.log('流动比率是否为预测:', currentRatioProjected)
     console.log('========== 财务数据获取结束 ==========')
 
     return {
@@ -706,6 +730,10 @@ export async function fetchHKStockFinancialReport(
         longTermDebt,
         operatingCashFlow,
         capitalExpenditure,
+        currentRatio,
+        currentRatioProjected,
+        peRatio: netProfits.map(() => null),
+        peRatioProjected: netProfits.map(() => false),
         currencyType: 'CNY' as CurrencyType,
         baseCurrency: 'HKD',
         source: 'api',
