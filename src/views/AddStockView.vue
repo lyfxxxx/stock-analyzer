@@ -534,6 +534,7 @@ async function fetchExchangeRatesData() {
     const result = await fetchExchangeRates()
     exchangeRates.value = result.rates
   } catch (e) {
+    // eslint-disable-next-line no-console
     console.error('Failed to fetch exchange rates:', e)
   }
 }
@@ -774,6 +775,7 @@ async function retryFetch() {
   // 但不再自动切换，让用户自己选择
   if (fetchError.value && retryCount.value >= MAX_RETRIES) {
     // 记录已达到最大重试次数，但不自动切换模式
+    // eslint-disable-next-line no-console
     console.log(`已达到最大重试次数 (${MAX_RETRIES})，请手动选择切换到手动模式`)
   }
 }

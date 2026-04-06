@@ -5,6 +5,7 @@ import { fetchAStockFinancialReport } from '@/api/financialReportA'
 import { fetchHKStockFinancialReport } from '@/api/financialReportHK'
 import { calculateNetCash, calculateFreeCashFlow, calculateValuations } from '@/utils/calculator'
 import { buildYearlyData } from '@/utils/excelParser'
+import { logger } from '@/utils/logger'
 
 export function detectMarket(code: string): MarketType {
   const cleanCode = code.replace(/\.(SH|SZ|HK)$/, '')
@@ -140,7 +141,7 @@ export function useFinancialReportValuation() {
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : '计算估值失败'
-      console.error('FinancialReportValuation error:', err)
+      logger.error('useFinancialReport', 'FinancialReportValuation error:', err)
       return null
     } finally {
       loading.value = false

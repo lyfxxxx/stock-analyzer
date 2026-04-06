@@ -1,5 +1,6 @@
 import { financialReportRateLimiter } from '@/utils/rateLimiter'
 import { fetchExchangeRates } from './exchangeRate'
+import { logger } from '@/utils/logger'
 import type {
   FinancialReportData,
   FinancialReportError,
@@ -9,6 +10,9 @@ import type {
   ReportType,
 } from '@/types/financialReport'
 import type { CurrencyType } from '@/types/stock'
+import { validateApiResponse } from '@/utils/validateApiResponse'
+import { financialReportDataSchema } from '@/validation/apiSchemas'
+import { withRetry, fetchWithTimeout, HttpError } from '@/utils/retry'
 import {
   getReportType,
   getSimpleMultiplier,
@@ -66,15 +70,17 @@ function toHundredMillion(value: number | null): number {
 
 async function fetchWithRateLimit<T>(url: string): Promise<T> {
   return financialReportRateLimiter.enqueue(async () => {
-    const response = await fetch(url, {
-      headers: {
-        Referer: 'https://emweb.securities.eastmoney.com/',
-      },
+    return withRetry(async () => {
+      const response = await fetchWithTimeout(url, {
+        headers: {
+          Referer: 'https://emweb.securities.eastmoney.com/',
+        },
+      })
+      if (!response.ok) {
+        throw new HttpError(`HTTP error! status: ${response.status}`, response.status, response)
+      }
+      return response.json()
     })
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    return response.json()
   })
 }
 
@@ -261,9 +267,9 @@ export async function fetchAStockFinancialReport(
 
     const { rates } = await fetchExchangeRates()
 
-    console.log('========== A股财务数据获取开始 ==========')
-    console.log(`股票代码: ${code}`)
-    console.log(`汇率 HKD/CNY: CNY=${rates['CNY']}, USD=${rates['USD']}, HKD=${rates['HKD']}`)
+    logger.debug('financialReportA', '========== A股财务数据获取开始 ==========')
+    logger.debug('financialReportA', `股票代码: ${code}`)
+    logger.debug('financialReportA', `汇率 HKD/CNY: CNY=${rates['CNY']}, USD=${rates['USD']}, HKD=${rates['HKD']}`)
 
     const { profitRatios, cashFlowRatios } = calculateSeasonalRatiosFromData(incomeStatement, cashFlow)
 
@@ -316,7 +322,7 @@ export async function fetchAStockFinancialReport(
       if (data.profit.q3) reportTypes.add('Q3')
       if (data.profit.annual) reportTypes.add('Annual')
     })
-    console.log('A股报告类型分布:', Array.from(reportTypes).join(', '))
+    logger.debug('financialReportA', 'A股报告类型分布:', Array.from(reportTypes).join(', '))
 
     // 构建TTM历史数据
     const ttmHistoryProfit: FlexibleYearlyData[] = []
@@ -346,16 +352,16 @@ export async function fetchAStockFinancialReport(
     ttmHistoryProfit.sort((a, b) => a.year - b.year)
     ttmHistoryCF.sort((a, b) => a.year - b.year)
 
-    console.log('历史A股净利润数据(用于TTM):', ttmHistoryProfit.slice(-3))
-    console.log('历史A股现金流数据(用于TTM):', ttmHistoryCF.slice(-3))
+    logger.debug('financialReportA', '历史A股净利润数据(用于TTM):', ttmHistoryProfit.slice(-3))
+    logger.debug('financialReportA', '历史A股现金流数据(用于TTM):', ttmHistoryCF.slice(-3))
 
     // 计算历史TTM
     const reportType: ReportPeriodType = 'quarterly'
     const profitTTMHistory = calculateHistoryTTM(ttmHistoryProfit, reportType)
     const cfTTMHistory = calculateHistoryTTM(ttmHistoryCF, reportType)
 
-    console.log('历史净利润TTM数据:', profitTTMHistory.slice(-3))
-    console.log('历史现金流TTM数据:', cfTTMHistory.slice(-3))
+    logger.debug('financialReportA', '历史净利润TTM数据:', profitTTMHistory.slice(-3))
+    logger.debug('financialReportA', '历史现金流TTM数据:', cfTTMHistory.slice(-3))
 
     // 计算当前TTM
     const sortedYears = Array.from(periodDataByYear.keys()).sort((a, b) => b - a)
@@ -374,7 +380,7 @@ export async function fetchAStockFinancialReport(
       )
       if (profitTTMResult) {
         currentProfitTTM = profitTTMResult.ttm
-        console.log(`当前净利润TTM: ${currentProfitTTM} (使用${profitTTMResult.usedReportType})`)
+        logger.debug('financialReportA', `当前净利润TTM: ${currentProfitTTM} (使用${profitTTMResult.usedReportType})`)
       }
 
       const cfTTMResult = calculateCurrentTTM(
@@ -384,7 +390,7 @@ export async function fetchAStockFinancialReport(
       )
       if (cfTTMResult) {
         currentCFTTM = cfTTMResult.ttm
-        console.log(`当前现金流TTM: ${currentCFTTM} (使用${cfTTMResult.usedReportType})`)
+        logger.debug('financialReportA', `当前现金流TTM: ${currentCFTTM} (使用${cfTTMResult.usedReportType})`)
       }
     }
 
@@ -392,8 +398,8 @@ export async function fetchAStockFinancialReport(
     const profitTTMPrediction = predictWithTTM(profitTTMHistory)
     const cfTTMPrediction = predictWithTTM(cfTTMHistory)
 
-    console.log('TTM净利润预测:', profitTTMPrediction)
-    console.log('TTM现金流预测:', cfTTMPrediction)
+    logger.debug('financialReportA', 'TTM净利润预测:', profitTTMPrediction)
+    logger.debug('financialReportA', 'TTM现金流预测:', cfTTMPrediction)
 
     const balanceByYear = getLatestReportByYear(balanceSheet)
     const incomeByYear = getLatestReportByYear(incomeStatement)
@@ -441,8 +447,8 @@ export async function fetchAStockFinancialReport(
       // 现金流即使只有H1，也可以用TTM预测，不影响年份的"实际/预测"标记
       const isYearProjected = incomeReportType !== 'annual'
 
-      console.log(`========== ${year}年度预测计算 ==========`)
-      console.log(`报告类型: ${incomeReportType}, ${cashFlowReportType}`)
+      logger.debug('financialReportA', `========== ${year}年度预测计算 ==========`)
+      logger.debug('financialReportA', `报告类型: ${incomeReportType}, ${cashFlowReportType}`)
 
       const monetaryFunds = balance?.MONETARYFUNDS || 0
       const tradeFinAsset = balance?.TRADE_FINASSET_NOTFVTPL || 0
@@ -459,31 +465,31 @@ export async function fetchAStockFinancialReport(
       if (incomeReportType !== 'annual') {
         if (currentProfitTTM !== null && profitTTMPrediction.confidence !== 'low') {
           netProfitRaw = currentProfitTTM
-          console.log(`使用当前TTM作为净利润预测: ${netProfitRaw}`)
+          logger.debug('financialReportA', `使用当前TTM作为净利润预测: ${netProfitRaw}`)
         } else {
           netProfitRaw = projectValue(netProfitRaw, incomeReportType, profitRatios)
-          console.log(`使用原有算法预测净利润: ${netProfitRaw}`)
+          logger.debug('financialReportA', `使用原有算法预测净利润: ${netProfitRaw}`)
         }
       }
 
       if (cashFlowReportType !== 'annual') {
         if (currentCFTTM !== null && cfTTMPrediction.confidence !== 'low') {
           operatingCFRaw = currentCFTTM
-          console.log(`使用当前TTM作为运营现金流预测: ${operatingCFRaw}`)
+          logger.debug('financialReportA', `使用当前TTM作为运营现金流预测: ${operatingCFRaw}`)
         } else {
           operatingCFRaw = projectValue(operatingCFRaw, cashFlowReportType, cashFlowRatios)
-          console.log(`使用原有算法预测运营现金流: ${operatingCFRaw}`)
+          logger.debug('financialReportA', `使用原有算法预测运营现金流: ${operatingCFRaw}`)
         }
         capExRaw = projectValue(capExRaw, cashFlowReportType, cashFlowRatios)
       }
 
-      console.log(`原始净利润: ${netProfitRaw}, 原始运营现金流: ${operatingCFRaw}, 资本开支: ${capExRaw}`)
+      logger.debug('financialReportA', `原始净利润: ${netProfitRaw}, 原始运营现金流: ${operatingCFRaw}, 资本开支: ${capExRaw}`)
 
       const netProfit = netProfitRaw
       const operatingCF = operatingCFRaw
       const capEx = -Math.abs(capExRaw)
       const freeCashFlow = operatingCF - Math.abs(capEx)
-      console.log(`最终自由现金流: ${freeCashFlow}`)
+      logger.debug('financialReportA', `最终自由现金流: ${freeCashFlow}`)
 
       years.push(year)
       cashAndEquivalents.push(Math.round(totalCash * 100) / 100)
@@ -506,18 +512,18 @@ export async function fetchAStockFinancialReport(
       currentRatioProjected.push(balanceReportType !== 'annual')
     }
 
-    console.log('========== 年度数据处理完成 ==========')
-    console.log('========== 最终返回数据 ==========')
-    console.log('年份:', years)
-    console.log('净利润:', netProfits)
-    console.log('运营现金流:', operatingCashFlow)
-    console.log('资本开支:', capitalExpenditure)
-    console.log('自由现金流(计算值):', netProfits.map((np, i) => (operatingCashFlow[i] || 0) - Math.abs(capitalExpenditure[i] || 0)))
-    console.log('是否为预测数据:', isProjected)
-    console.log('净利润是否为预测:', netProfitProjected)
-    console.log('自由现金流是否为预测:', freeCashFlowProjected)
-    console.log('净现金是否为预测:', netCashProjected)
-    console.log('========== A股财务数据获取结束 ==========')
+    logger.debug('financialReportA', '========== 年度数据处理完成 ==========')
+    logger.debug('financialReportA', '========== 最终返回数据 ==========')
+    logger.debug('financialReportA', '年份:', years)
+    logger.debug('financialReportA', '净利润:', netProfits)
+    logger.debug('financialReportA', '运营现金流:', operatingCashFlow)
+    logger.debug('financialReportA', '资本开支:', capitalExpenditure)
+    logger.debug('financialReportA', '自由现金流(计算值):', netProfits.map((np, i) => (operatingCashFlow[i] || 0) - Math.abs(capitalExpenditure[i] || 0)))
+    logger.debug('financialReportA', '是否为预测数据:', isProjected)
+    logger.debug('financialReportA', '净利润是否为预测:', netProfitProjected)
+    logger.debug('financialReportA', '自由现金流是否为预测:', freeCashFlowProjected)
+    logger.debug('financialReportA', '净现金是否为预测:', netCashProjected)
+    logger.debug('financialReportA', '========== A股财务数据获取结束 ==========')
 
     if (years.length === 0) {
       return {
@@ -530,7 +536,7 @@ export async function fetchAStockFinancialReport(
     }
 
     return {
-      data: {
+      data: validateApiResponse({
         years,
         netProfits,
         cashAndEquivalents,
@@ -550,7 +556,7 @@ export async function fetchAStockFinancialReport(
         netProfitProjected,
         freeCashFlowProjected,
         netCashProjected,
-      },
+      }, financialReportDataSchema),
       error: null,
     }
   } catch (err) {

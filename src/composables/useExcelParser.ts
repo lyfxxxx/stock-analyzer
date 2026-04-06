@@ -4,6 +4,7 @@ import { readExcelFile, extractFinancialData, buildYearlyData } from '@/utils/ex
 import { validateExcelData } from '@/utils/validator'
 import { calculateNetCash, calculateFreeCashFlow, calculateValuations } from '@/utils/calculator'
 import { fetchExchangeRates } from '@/api/exchangeRate'
+import { logger } from '@/utils/logger'
 
 export function useExcelParser() {
   const loading = ref(false)
@@ -152,7 +153,7 @@ export function useValuation() {
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : '计算估值失败'
-      console.error('Valuation calculation error:', err)
+      logger.error('useExcelParser', 'Valuation calculation error:', err)
       return null
     } finally {
       loading.value = false

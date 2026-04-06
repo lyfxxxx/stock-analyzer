@@ -1,5 +1,9 @@
 import type { ApiStockInfo, ApiTestResult, StockSearchResult } from '@/types/stock'
 import { fetchExchangeRates } from './exchangeRate'
+import { validateApiResponse } from '@/utils/validateApiResponse'
+import { eastMoneyStockInfoSchema, stockSearchResultSchema } from '@/validation/apiSchemas'
+import { logger } from '@/utils/logger'
+import { withRetry, fetchWithTimeout, HttpError } from '@/utils/retry'
 
 export async function fetchEastMoneyStockInfo(code: string, market: 'HK' | 'A'): Promise<ApiStockInfo | null> {
   try {
@@ -13,35 +17,37 @@ export async function fetchEastMoneyStockInfo(code: string, market: 'HK' | 'A'):
     }
 
     // f57 = code, f58 = name, f116 = total market cap
-    const response = await fetch(
-      `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=f57,f58,f116`,
-      {
-        method: 'GET',
-        mode: 'cors',
-        headers: {
-          'Accept': 'application/json'
+    const result = await withRetry(async () => {
+      const response = await fetchWithTimeout(
+        `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=f57,f58,f116`,
+        {
+          method: 'GET',
+          mode: 'cors',
+          headers: {
+            'Accept': 'application/json'
+          }
         }
+      )
+
+      if (!response.ok) {
+        throw new HttpError(`HTTP ${response.status}`, response.status, response)
       }
-    )
 
-    if (!response.ok) {
-      return null
-    }
-
-    const result = await response.json()
+      return response.json()
+    })
 
     if (result.data) {
-      return {
+      return validateApiResponse({
         name: result.data.f58,
         code: result.data.f57,
         market,
         marketCap: parseFloat(result.data.f116) / 100000000
-      }
+      }, eastMoneyStockInfoSchema)
     }
 
     return null
   } catch (error) {
-    console.error('Failed to fetch stock info:', error)
+    logger.error('eastmoney', 'Failed to fetch stock info:', error)
     return null
   }
 }
@@ -179,7 +185,7 @@ export async function searchStocksByName(
       .map(item => {
         const jysCode = mapJysToCode(item.JYS)
         const { market: marketType, marketName } = mapMarketCode(item.MktNum, item.Classify, jysCode)
-        
+
         if (market && marketType !== market) {
           return null
         }
@@ -190,20 +196,20 @@ export async function searchStocksByName(
             ? `${item.Code}.SZ`
             : `${item.Code}.SH`
 
-        return {
+        return validateApiResponse({
           code: item.Code,
           fullCode,
           name: item.Name,
           market: marketType,
           marketName,
           marketCap: 0
-        }
+        }, stockSearchResultSchema)
       })
       .filter((item): item is StockSearchResult => item !== null)
 
     return results
   } catch (error) {
-    console.error('Search stocks error:', error)
+    logger.error('eastmoney', 'Search stocks error:', error)
     return []
   }
 }

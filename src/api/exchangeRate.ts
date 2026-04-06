@@ -1,3 +1,8 @@
+import { validateApiResponse } from '@/utils/validateApiResponse'
+import { exchangeRateResultSchema } from '@/validation/apiSchemas'
+import { logger } from '@/utils/logger'
+import { withRetry, fetchWithTimeout, HttpError } from '@/utils/retry'
+
 const FALLBACK_RATES: Record<string, number> = {
   USD: 7.75,
   HKD: 1.00,
@@ -20,20 +25,21 @@ export async function fetchExchangeRates(): Promise<ExchangeRateResult> {
   }
 
   try {
-    const response = await fetch('https://open.er-api.com/v6/latest/HKD')
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
-    }
-
-    const data = await response.json()
-    if (data.result !== 'success') {
+    const response = await withRetry(async () => {
+      const resp = await fetchWithTimeout('https://open.er-api.com/v6/latest/HKD')
+      if (!resp.ok) {
+        throw new HttpError(`HTTP ${resp.status}`, resp.status, resp)
+      }
+      return resp.json()
+    })
+    if (response.result !== 'success') {
       throw new Error('API returned error')
     }
 
     const rates: Record<string, number> = {
       HKD: 1.00,
-      USD: data.rates?.USD || FALLBACK_RATES.USD,
-      CNY: data.rates?.CNY || FALLBACK_RATES.CNY
+      USD: response.rates?.USD || FALLBACK_RATES.USD,
+      CNY: response.rates?.CNY || FALLBACK_RATES.CNY
     }
 
     const result: ExchangeRateResult = {
@@ -43,14 +49,14 @@ export async function fetchExchangeRates(): Promise<ExchangeRateResult> {
     }
 
     setCachedRates(result)
-    return result
+    return validateApiResponse(result, exchangeRateResultSchema)
   } catch (error) {
-    console.error('Failed to fetch exchange rates:', error)
-    return {
+    logger.error('exchangeRate', 'Failed to fetch exchange rates:', error)
+    return validateApiResponse({
       rates: FALLBACK_RATES,
       source: 'fallback',
       lastUpdate: Date.now()
-    }
+    }, exchangeRateResultSchema)
   }
 }
 
@@ -77,7 +83,7 @@ function setCachedRates(result: ExchangeRateResult): void {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(result))
   } catch (error) {
-    console.error('Failed to cache exchange rates:', error)
+    logger.error('exchangeRate', 'Failed to cache exchange rates:', error)
   }
 }
 

@@ -1,0 +1,21 @@
+{
+  "active_plan": "D:\\workspace\\stock-project\\stock-analyzer\\.sisyphus\\plans\\harness-engineering.md",
+  "started_at": "2026-04-06T03:15:36.763Z",
+  "session_ids": [
+    "ses_2a3a8bc57ffeAas22re1fz8wiJ",
+    "ses_29f34b74bffeSG5fxHOLqiR2tn",
+    "ses_29f344d1cffeAoTdq4FjiWytDD"
+  ],
+  "plan_name": "harness-engineering",
+  "agent": "atlas",
+  "task_sessions": {
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "**Plan Compliance Audit** — `oracle`",
+      "session_id": "ses_29f34b74bffeSG5fxHOLqiR2tn",
+      "agent": "oracle",
+      "updated_at": "2026-04-06T03:17:58.943Z"
+    }
+  }
+}

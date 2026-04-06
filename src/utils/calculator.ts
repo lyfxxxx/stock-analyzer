@@ -1,5 +1,6 @@
 import type { YearlyData, CurrencyType } from '@/types/stock'
 import type { ReportType } from '@/types/financialReport'
+import { logger } from '@/utils/logger'
 
 /**
  * Convert financial data from original currency to target currency (HKD)
@@ -598,13 +599,13 @@ export function predictWithTTM(
     confidence = 'medium'
   }
   
-  console.log(`[TTM算法] 历史TTM数量: ${sorted.length}`)
-  console.log(`[TTM算法] 有效增长率数量: ${growthRates.length}`)
-  console.log(`[TTM算法] 历史增长率:`, growthRates.map(g => (g * 100).toFixed(1) + '%'))
-  console.log(`[TTM算法] 平均增长率: ${(avgGrowthRate * 100).toFixed(2)}%`)
-  console.log(`[TTM算法] 最新TTM: ${latestTTM.toFixed(2)}`)
-  console.log(`[TTM算法] 预测TTM: ${predictedTTM.toFixed(2)}`)
-  console.log(`[TTM算法] 置信度: ${confidence}`)
+  logger.debug('calculator', `[TTM算法] 历史TTM数量: ${sorted.length}`)
+  logger.debug('calculator', `[TTM算法] 有效增长率数量: ${growthRates.length}`)
+  logger.debug('calculator', `[TTM算法] 历史增长率:`, growthRates.map(g => (g * 100).toFixed(1) + '%'))
+  logger.debug('calculator', `[TTM算法] 平均增长率: ${(avgGrowthRate * 100).toFixed(2)}%`)
+  logger.debug('calculator', `[TTM算法] 最新TTM: ${latestTTM.toFixed(2)}`)
+  logger.debug('calculator', `[TTM算法] 预测TTM: ${predictedTTM.toFixed(2)}`)
+  logger.debug('calculator', `[TTM算法] 置信度: ${confidence}`)
   
   return {
     predictedTTM: Math.round(predictedTTM * 100) / 100,
@@ -703,11 +704,11 @@ export function predictFullYearFlexible(
   
   const avgRatio = validYears > 0 ? totalRatio / validYears : 0.5
 
-  console.log(`[Gemini算法] 期间类型: ${periodType}, 已披露期间: ${disclosedPeriods.join(',')}`)
-  console.log(`[Gemini算法] 当前已披露合计: ${currentSum}`)
-  console.log(`[Gemini算法] 有效历史年份数: ${validYears}`)
-  console.log(`[Gemini算法] 历史比例详情:`, ratioDetails.slice(-3))
-  console.log(`[Gemini算法] 平均比例: ${avgRatio}`)
+  logger.debug('calculator', `[Gemini算法] 期间类型: ${periodType}, 已披露期间: ${disclosedPeriods.join(',')}`)
+  logger.debug('calculator', `[Gemini算法] 当前已披露合计: ${currentSum}`)
+  logger.debug('calculator', `[Gemini算法] 有效历史年份数: ${validYears}`)
+  logger.debug('calculator', `[Gemini算法] 历史比例详情:`, ratioDetails.slice(-3))
+  logger.debug('calculator', `[Gemini算法] 平均比例: ${avgRatio}`)
 
   // 2. 基础预测值
   let basePrediction = 0
@@ -740,14 +741,14 @@ export function predictFullYearFlexible(
       growthRate = 1
     }
     
-    console.log(`[Gemini算法] 去年同期: ${lastYearSamePeriod}, 增长率: ${growthRate}`)
+    logger.debug('calculator', `[Gemini算法] 去年同期: ${lastYearSamePeriod}, 增长率: ${growthRate}`)
   }
 
   // 4. 结合季节性预测和增长率修正
   // 增长率修正权重为0.3，避免过度反应
   const predictedValue = basePrediction * (1 + growthRate * 0.3)
   
-  console.log(`[Gemini算法] 基础预测: ${basePrediction}, 最终预测: ${predictedValue}`)
+  logger.debug('calculator', `[Gemini算法] 基础预测: ${basePrediction}, 最终预测: ${predictedValue}`)
 
   // 5. 置信度判断
   let confidence: 'high' | 'medium' | 'low' = 'low'

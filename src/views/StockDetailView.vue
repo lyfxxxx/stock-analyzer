@@ -257,6 +257,8 @@ import { fetchExchangeRates } from '@/api/exchangeRate'
 import type { StockData } from '@/types/stock'
 import ValuationChart from '@/components/ValuationChart.vue'
 
+import { logger } from '@/utils/logger'
+
 type CurrencyType = 'HKD' | 'CNY' | 'USD' | 'OTHER'
 
 const router = useRouter()
@@ -298,7 +300,7 @@ onMounted(async () => {
       const result = await fetchExchangeRates()
       exchangeRates.value = result.rates
     } catch (e) {
-      console.error('Failed to fetch exchange rates:', e)
+      logger.error('StockDetailView', 'Failed to fetch exchange rates:', e)
     }
   } finally {
     loading.value = false
@@ -361,7 +363,7 @@ async function handleUpdateFinancialData() {
       stock.value = updatedStock
     }
   } catch (e) {
-    console.error('Failed to update financial data:', e)
+    logger.error('StockDetailView', 'Failed to update financial data:', e)
     alert('更新失败，请重试')
   }
 }

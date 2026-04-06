@@ -43,6 +43,7 @@
 import { ref, computed } from 'vue'
 import type { ApiTestResult } from '@/types/stock'
 import { testEastMoneyAPI } from '@/api/eastmoney'
+import { logger } from '@/utils/logger'
 
 const emit = defineEmits<{
   (e: 'update:available', value: boolean): void
@@ -65,7 +66,7 @@ async function testAPIs() {
     results.value = [eastMoneyResult]
     emit('update:available', anyAvailable.value)
   } catch (err) {
-    console.error('API test error:', err)
+    logger.error('ApiTester', 'API test error:', err)
   } finally {
     testing.value = false
   }

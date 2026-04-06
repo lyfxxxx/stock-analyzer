@@ -197,7 +197,8 @@ describe('EastMoney API', () => {
 
       const result = await fetchEastMoneyStockInfo('00700', 'HK')
 
-      expect(result?.marketCap).toBeNaN()
+      // Zod validation rejects NaN, so the error is caught and null is returned
+      expect(result).toBeNull()
     })
   })
 
