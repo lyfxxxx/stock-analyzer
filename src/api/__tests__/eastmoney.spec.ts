@@ -276,10 +276,6 @@ describe('EastMoney API', () => {
   })
 
   describe('searchStocksByName', () => {
-    // Note: JSONP tests are skipped because JSONP relies on script tag loading
-    // which is difficult to properly mock in jsdom environment.
-    // The actual functionality is tested via E2E tests.
-
     it('should return empty array for empty query', async () => {
       const result = await searchStocksByName('')
       expect(result).toEqual([])

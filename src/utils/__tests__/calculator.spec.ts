@@ -9,7 +9,13 @@ import {
   formatNumber,
   formatCurrency,
   convertFinancialData,
-  convertFinancialDataArray
+  convertFinancialDataArray,
+  calculateCurrentRatio,
+  calculatePERatio,
+  getReportType,
+  getSimpleMultiplier,
+  extractYearFromReportDate,
+  isAnnualReport
 } from '../calculator'
 import type { YearlyData } from '@/types/stock'
 
@@ -322,6 +328,151 @@ describe('Calculator', () => {
         
         expect(result).toEqual([0, 7.75, 0])
       })
+    })
+  })
+
+  describe('calculateCurrentRatio', () => {
+    it('should calculate ratio correctly', () => {
+      const result = calculateCurrentRatio(1000, 500)
+      expect(result).toBe(2)
+    })
+
+    it('should round to 2 decimal places', () => {
+      const result = calculateCurrentRatio(1000, 333)
+      expect(result).toBe(3)
+    })
+
+    it('should return null when currentAssets is null', () => {
+      const result = calculateCurrentRatio(null, 500)
+      expect(result).toBeNull()
+    })
+
+    it('should return null when currentLiabilities is null', () => {
+      const result = calculateCurrentRatio(1000, null)
+      expect(result).toBeNull()
+    })
+
+    it('should return null when currentAssets is 0', () => {
+      const result = calculateCurrentRatio(0, 500)
+      expect(result).toBeNull()
+    })
+
+    it('should return null when currentLiabilities is 0', () => {
+      const result = calculateCurrentRatio(1000, 0)
+      expect(result).toBeNull()
+    })
+  })
+
+  describe('calculatePERatio', () => {
+    it('should calculate PE ratio correctly', () => {
+      const result = calculatePERatio(1000, 100)
+      expect(result).toBe(10)
+    })
+
+    it('should round to 1 decimal place', () => {
+      const result = calculatePERatio(1000, 333)
+      expect(result).toBe(3)
+    })
+
+    it('should return null when marketCap is null', () => {
+      const result = calculatePERatio(null, 100)
+      expect(result).toBeNull()
+    })
+
+    it('should return null when netProfit is null', () => {
+      const result = calculatePERatio(1000, null)
+      expect(result).toBeNull()
+    })
+
+    it('should return null when marketCap is 0', () => {
+      const result = calculatePERatio(0, 100)
+      expect(result).toBeNull()
+    })
+
+    it('should return null when netProfit is 0', () => {
+      const result = calculatePERatio(1000, 0)
+      expect(result).toBeNull()
+    })
+
+    it('should return null when netProfit is negative', () => {
+      const result = calculatePERatio(1000, -50)
+      expect(result).toBeNull()
+    })
+  })
+
+  describe('getReportType', () => {
+    it('should return annual for 12-31 date', () => {
+      expect(getReportType('2023-12-31')).toBe('annual')
+    })
+
+    it('should return Q1 for 03-31 date', () => {
+      expect(getReportType('2023-03-31')).toBe('Q1')
+    })
+
+    it('should return H1 for 06-30 date', () => {
+      expect(getReportType('2023-06-30')).toBe('H1')
+    })
+
+    it('should return Q3 for 09-30 date', () => {
+      expect(getReportType('2023-09-30')).toBe('Q3')
+    })
+
+    it('should return annual for non-standard date (default)', () => {
+      expect(getReportType('2023-05-15')).toBe('annual')
+    })
+
+    it('should handle string input', () => {
+      expect(getReportType(20231231)).toBe('annual')
+    })
+  })
+
+  describe('getSimpleMultiplier', () => {
+    it('should return 1.0 for annual', () => {
+      expect(getSimpleMultiplier('annual')).toBe(1.0)
+    })
+
+    it('should return 4.0 for Q1', () => {
+      expect(getSimpleMultiplier('Q1')).toBe(4.0)
+    })
+
+    it('should return 2.0 for H1', () => {
+      expect(getSimpleMultiplier('H1')).toBe(2.0)
+    })
+
+    it('should return 4/3 for Q3', () => {
+      expect(getSimpleMultiplier('Q3')).toBeCloseTo(4 / 3)
+    })
+  })
+
+  describe('extractYearFromReportDate', () => {
+    it('should extract year from standard date format', () => {
+      expect(extractYearFromReportDate('2023-12-31')).toBe(2023)
+    })
+
+    it('should extract year from early year', () => {
+      expect(extractYearFromReportDate('2020-06-30')).toBe(2020)
+    })
+
+    it('should extract year from late year', () => {
+      expect(extractYearFromReportDate('2030-03-31')).toBe(2030)
+    })
+  })
+
+  describe('isAnnualReport', () => {
+    it('should return true for 12-31 date', () => {
+      expect(isAnnualReport('2023-12-31')).toBe(true)
+    })
+
+    it('should return false for 03-31 date', () => {
+      expect(isAnnualReport('2023-03-31')).toBe(false)
+    })
+
+    it('should return false for 06-30 date', () => {
+      expect(isAnnualReport('2023-06-30')).toBe(false)
+    })
+
+    it('should return false for 09-30 date', () => {
+      expect(isAnnualReport('2023-09-30')).toBe(false)
     })
   })
 })

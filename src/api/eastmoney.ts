@@ -1,5 +1,4 @@
 import type { ApiStockInfo, ApiTestResult, StockSearchResult } from '@/types/stock'
-import { fetchExchangeRates } from './exchangeRate'
 import { validateApiResponse } from '@/utils/validateApiResponse'
 import { eastMoneyStockInfoSchema, stockSearchResultSchema } from '@/validation/apiSchemas'
 import { logger } from '@/utils/logger'
