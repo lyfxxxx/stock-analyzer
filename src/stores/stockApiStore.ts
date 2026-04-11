@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import type { StockData } from '@/types/stock'
 import { fetchEastMoneyStockInfo, testEastMoneyAPI, searchStocksByName } from '@/api/eastmoney'
+import { testTencentAPI, fetchTencentHKFinancialReport } from '@/api/tencent'
 import { fetchAStockFinancialReport } from '@/api/financialReportA'
 import { fetchHKStockFinancialReport } from '@/api/financialReportHK'
 import { calculateNetCash, calculateFreeCashFlow, calculateValuations, calculatePERatio } from '@/utils/calculator'
@@ -17,9 +18,14 @@ export const useStockApiStore = defineStore('stockApi', () => {
     ui.apiTestResults = []
 
     try {
+      // 测试东方财富 API
       const eastMoneyResult = await testEastMoneyAPI()
-      ui.apiTestResults = [eastMoneyResult]
-      ui.isApiAvailable = eastMoneyResult.status === 'success'
+      
+      // 测试腾讯 API
+      const tencentResult = await testTencentAPI()
+      
+      ui.apiTestResults = [eastMoneyResult, tencentResult]
+      ui.isApiAvailable = eastMoneyResult.status === 'success' || tencentResult.status === 'success'
     } catch (err) {
       logger.error('stockApiStore', 'API test error:', err)
       ui.isApiAvailable = false
@@ -55,9 +61,26 @@ export const useStockApiStore = defineStore('stockApi', () => {
     ui.error = null
 
     try {
-      const reportResult = market === 'HK'
-        ? await fetchHKStockFinancialReport(code)
-        : await fetchAStockFinancialReport(code)
+      let reportResult
+      
+      if (market === 'HK') {
+        // 优先使用东方财富，失败则使用腾讯
+        const eastMoneyResult = await fetchHKStockFinancialReport(code)
+        
+        if (eastMoneyResult.error || !eastMoneyResult.data) {
+          logger.warn('stockApiStore', '东方财富港股API失败，尝试腾讯API')
+          const tencentResult = await fetchTencentHKFinancialReport(code)
+          
+          if (tencentResult.error || !tencentResult.data) {
+            throw new Error(tencentResult.error?.message || '获取财报数据失败')
+          }
+          reportResult = tencentResult
+        } else {
+          reportResult = eastMoneyResult
+        }
+      } else {
+        reportResult = await fetchAStockFinancialReport(code)
+      }
 
       if (reportResult.error || !reportResult.data) {
         throw new Error(reportResult.error?.message || '获取财报数据失败')
