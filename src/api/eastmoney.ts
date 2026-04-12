@@ -113,6 +113,7 @@ const JYS_CODE_MAP: Record<string, string> = {
   '1': 'SH',    // 上海A股
   '2': 'SH',    // 上海A股（部分股票返回2）
   '6': 'SZ',    // 深圳A股
+  '80': 'CYB' // 创业板（A股）
 }
 
 function mapJysToCode(jys: string): string {
@@ -128,6 +129,9 @@ function mapMarketCode(mktNum: string, classify: string, jys: string): { market:
   }
   if (mktNum === '1' || jys === 'SH' || jys === '1' || jys === '2') {
     return { market: 'A', marketName: 'A股(沪)' }
+  }
+  if(jys === 'CYB') {
+    return { market: 'A', marketName: '创业板' }
   }
   return { market: 'A', marketName: 'A股' }
 }
@@ -183,7 +187,7 @@ export async function searchStocksByName(
     const results: StockSearchResult[] = data.QuotationCodeTable.Data
       .filter(item => {
         const jysCode = mapJysToCode(item.JYS)
-        return ['HK', 'SH', 'SZ'].includes(jysCode)
+        return ['HK', 'SH', 'SZ', 'CYB'].includes(jysCode)
       })
       .map(item => {
         const jysCode = mapJysToCode(item.JYS)
