@@ -73,7 +73,7 @@ function convertCurrency(value: number): number {
     // HKD --> 目标
     const hkd2target = exchangeRates[currency] || 1
     // sourceCurrency --> HKD
-    const src2hkd = 1 / (exchangeRates[currency] || 1)
+    const src2hkd = 1 / (exchangeRates[sourceCurrency] || 1)
     rate = src2hkd * hkd2target
   }
   return value * rate
