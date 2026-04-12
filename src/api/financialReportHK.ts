@@ -465,8 +465,11 @@ export async function fetchHKStockFinancialReport(
     logger.debug('financialReportHK', '现金流量表报告类型分布:', Object.fromEntries(cfReportTypes))
 
     const { rates } = await fetchExchangeRates()
-    const toHKD = 1 / (rates['CNY'] || 1.10)
-    logger.debug('financialReportHK', `汇率 CNY -> HKD: 1 / ${rates['CNY'] || 1.10} = ${toHKD}`)
+    // API returns rates based on HKD (e.g., rates.CNY = 0.874 means 1 HKD = 0.874 CNY)
+    // So to convert CNY to HKD: value / rates.CNY (or value * (1/rates.CNY))
+    const cnyRate = rates['CNY'] || 0.874297
+    const toHKD = 1 / cnyRate
+    logger.debug('financialReportHK', `汇率 CNY -> HKD: 1/${cnyRate} = ${toHKD}`)
 
     const { profitRatios, cashFlowRatios } = calculateSeasonalRatiosFromData(incomeStatement, cashFlow)
 

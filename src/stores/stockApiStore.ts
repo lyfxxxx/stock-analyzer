@@ -4,6 +4,7 @@ import { fetchEastMoneyStockInfo, testEastMoneyAPI, searchStocksByName } from '@
 import { testTencentAPI, fetchTencentHKFinancialReport } from '@/api/tencent'
 import { fetchAStockFinancialReport } from '@/api/financialReportA'
 import { fetchHKStockFinancialReport } from '@/api/financialReportHK'
+import { fetchExchangeRates } from '@/api/exchangeRate'
 import { calculateNetCash, calculateFreeCashFlow, calculateValuations, calculatePERatio } from '@/utils/calculator'
 import { buildYearlyData } from '@/utils/excelParser'
 import { logger } from '@/utils/logger'
@@ -99,6 +100,8 @@ export const useStockApiStore = defineStore('stockApi', () => {
       const latestFreeCashFlowProjected = financialData.freeCashFlowProjected[latestIndex] || false
       const latestNetCashProjected = financialData.netCashProjected[latestIndex] || false
 
+      // 如果获取的是港股，市值单位是HKD，A股则为CNY
+
       const netCash = calculateNetCash(latestCash, latestShortTermDebt, latestLongTermDebt)
       const freeCashFlow = calculateFreeCashFlow(latestOperatingCF, latestCapEx)
       const peRatio = calculatePERatio(marketCap, latestNetProfit)
@@ -139,6 +142,7 @@ export const useStockApiStore = defineStore('stockApi', () => {
         netCashProjected: latestNetCashProjected,
         currentRatioProjected: financialData.currentRatioProjected[0] ?? false,
         peRatioProjected: financialData.peRatioProjected[0] ?? false,
+        marketCap,
       }
     } catch (err) {
       ui.error = err instanceof Error ? err.message : '获取财报数据失败'
@@ -207,10 +211,11 @@ export const useStockApiStore = defineStore('stockApi', () => {
       const financialResult = await fetchFinancialReport(stock.code, stock.market, info.marketCap)
 
       // 3. 保存完整的股票数据（包含新市值和新估值）
+      // 注意：市值已经在 fetchFinancialReport 中转换为 HKD（如果是港股）
       const updatedStock: StockData = {
         ...stock,
         name: info.name,
-        marketCap: info.marketCap,
+        marketCap: financialResult.marketCap ?? info.marketCap,
         netCash: financialResult.netCash,
         freeCashFlow: financialResult.freeCashFlow,
         netProfit: financialResult.netProfit,

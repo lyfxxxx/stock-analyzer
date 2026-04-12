@@ -3,10 +3,13 @@ import { exchangeRateResultSchema } from '@/validation/apiSchemas'
 import { logger } from '@/utils/logger'
 import { withRetry, fetchWithTimeout, HttpError } from '@/utils/retry'
 
+// Fallback rates based on API: https://open.er-api.com/v6/latest/HKD
+// rates.CNY = 0.874297 means 1 HKD = 0.874297 CNY
+// So 1 CNY = 1/0.874297 = 1.1438 HKD
 const FALLBACK_RATES: Record<string, number> = {
-  USD: 7.75,
   HKD: 1.00,
-  CNY: 1.10
+  USD: 0.127675,  // 1 HKD = 0.127675 USD
+  CNY: 0.874297   // 1 HKD = 0.874297 CNY
 }
 
 const CACHE_KEY = 'exchangeRates_HKD'

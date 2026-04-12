@@ -118,9 +118,9 @@ describe('Exchange Rate API', () => {
       const result = await fetchExchangeRates()
 
       expect(result.rates).toEqual({
-        USD: 7.75,
         HKD: 1.0,
-        CNY: 1.10
+        USD: 0.127675,
+        CNY: 0.874297
       })
       expect(result.source).toBe('fallback')
     })
@@ -135,9 +135,9 @@ describe('Exchange Rate API', () => {
       const result = await fetchExchangeRates()
 
       expect(result.rates).toEqual({
-        USD: 7.75,
         HKD: 1.0,
-        CNY: 1.10
+        USD: 0.127675,
+        CNY: 0.874297
       })
       expect(result.source).toBe('fallback')
       expect(logger.error).toHaveBeenCalled()
@@ -153,9 +153,9 @@ describe('Exchange Rate API', () => {
       const result = await fetchExchangeRates()
 
       expect(result.rates).toEqual({
-        USD: 7.75,
         HKD: 1.0,
-        CNY: 1.10
+        USD: 0.127675,
+        CNY: 0.874297
       })
       expect(result.source).toBe('fallback')
     })
@@ -177,8 +177,8 @@ describe('Exchange Rate API', () => {
 
       expect(result.rates).toEqual({
         HKD: 1.0,
-        USD: 7.75, // fallback
-        CNY: 1.10  // fallback
+        USD: 0.127675, // fallback
+        CNY: 0.874297  // fallback
       })
       expect(result.source).toBe('api')
     })

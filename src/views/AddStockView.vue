@@ -540,14 +540,25 @@ async function fetchExchangeRatesData() {
 
 function convertCurrency(value: number, fromCurrency: CurrencyType, toCurrency: CurrencyType): number {
   if (fromCurrency === toCurrency) return value
-  const rate = exchangeRates.value[toCurrency] || 1
-  return value / rate
+  // 由于汇率数据是以HKD为基准的，因此baseCurrency决定了换算的方式
+  if (fromCurrency === toCurrency) return value
+  let rate;
+  if (fromCurrency === 'HKD') {
+    rate = exchangeRates.value[toCurrency] || 1
+  } else {
+    // HKD --> 目标
+    const hkd2target = exchangeRates.value[toCurrency] || 1
+    // fromCurrency --> HKD
+    const src2hkd = 1 / (exchangeRates.value[fromCurrency] || 1)
+    rate = src2hkd * hkd2target
+  }
+  return value * rate
 }
 
 function formatDisplayCurrency(value: number | undefined): string {
   if (value === undefined || isNaN(value)) return '-'
-  const sourceCurrency = previewData.value?.baseCurrency || 'HKD'
-  const converted = convertCurrency(value, sourceCurrency, displayCurrency.value)
+  const fromCurrency = previewData.value?.baseCurrency || 'HKD'
+  const converted = convertCurrency(value, fromCurrency, displayCurrency.value)
   const unitNames: Record<CurrencyType, string> = {
     HKD: '亿港元',
     CNY: '亿人民币',
@@ -735,7 +746,7 @@ async function fetchFinancialData() {
         name: form.name,
         code: form.code,
         market: form.market,
-        marketCap: form.marketCap,
+        marketCap: reportData.marketCap ?? form.marketCap,
         netCash: reportData.netCash,
         freeCashFlow: reportData.freeCashFlow,
         netProfit: reportData.netProfit,

@@ -6,7 +6,11 @@ import { financialReportRateLimiter } from '@/utils/rateLimiter'
 
 vi.mock('@/api/exchangeRate', () => ({
   fetchExchangeRates: vi.fn().mockResolvedValue({
-    rates: { CNY: 1.10, HKD: 1, USD: 7.75 },
+    rates: { 
+      HKD: 1.00,
+      USD: 0.127675,  // 1 HKD = 0.127675 USD
+      CNY: 0.874297   // 1 HKD = 0.874297 CNY 
+    },
     source: 'api',
   }),
 }))
@@ -465,8 +469,9 @@ describe('financialReportHK', () => {
       const result = await fetchHKStockFinancialReport('03613')
 
       expect(result.data).not.toBeNull()
-      // HK stock data is in CNY, need to convert to HKD (divide by rate 1.10)
-      const cnyToHkd = 1 / 1.10
+      // HK stock data is in CNY, need to convert to HKD
+      // API rates.CNY = 0.874 means 1 HKD = 0.874 CNY, so 1 CNY = 1/0.874 HKD
+      const cnyToHkd = 1 / 0.874297
       const expectedTotalCash = ((1641937446.96 + 43226621.16) / 100000000) * cnyToHkd
       expect(result.data?.cashAndEquivalents[0]).toBeCloseTo(expectedTotalCash, 1)
       
@@ -579,7 +584,7 @@ describe('financialReportHK', () => {
       expect(result.data).not.toBeNull()
       expect(result.data?.years).toEqual([2024])
       
-      const cnyToHkd = 1 / 1.10
+      const cnyToHkd = 1 / 0.874297
       const expectedCapEx = -((500000000 + 300000000 + 200000000) / 100000000) * cnyToHkd
       expect(result.data?.capitalExpenditure[0]).toBeCloseTo(expectedCapEx, 1)
     })
@@ -630,7 +635,7 @@ describe('financialReportHK', () => {
       const result = await fetchHKStockFinancialReport('00883')
 
       expect(result.data).not.toBeNull()
-      const cnyToHkd = 1 / 1.10
+      const cnyToHkd = 1 / 0.874297
       const expectedCapEx = -(400000000 / 100000000) * cnyToHkd
       expect(result.data?.capitalExpenditure[0]).toBeCloseTo(expectedCapEx, 1)
     })
@@ -681,7 +686,7 @@ describe('financialReportHK', () => {
       const result = await fetchHKStockFinancialReport('00883')
 
       expect(result.data).not.toBeNull()
-      const cnyToHkd = 1 / 1.10
+      const cnyToHkd = 1 / 0.874297
       const expectedCapEx = -(150000000 / 100000000) * cnyToHkd
       expect(result.data?.capitalExpenditure[0]).toBeCloseTo(expectedCapEx, 1)
     })

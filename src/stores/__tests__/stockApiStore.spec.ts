@@ -32,6 +32,13 @@ vi.mock('@/api/financialReportHK', () => ({
   fetchHKStockFinancialReport: vi.fn()
 }))
 
+vi.mock('@/api/exchangeRate', () => ({
+  fetchExchangeRates: vi.fn().mockResolvedValue({
+    rates: { HKD: 1, USD: 0.127675, CNY: 0.874297 },
+    source: 'api'
+  })
+}))
+
 vi.mock('@/utils/calculator', () => ({
   calculateNetCash: vi.fn(),
   calculateFreeCashFlow: vi.fn(),
@@ -47,7 +54,8 @@ vi.mock('@/utils/logger', () => ({
   logger: {
     error: vi.fn(),
     warn: vi.fn(),
-    info: vi.fn()
+    info: vi.fn(),
+    debug: vi.fn()
   }
 }))
 
@@ -418,7 +426,8 @@ describe('stockApiStore', () => {
 
       expect(stockDB.put).toHaveBeenCalled()
       const putCall = vi.mocked(stockDB.put).mock.calls[0][0]
-      expect(putCall.marketCap).toBe(5000000000000)
+      // HK获取的市值已经是HKD，不需要再转换
+      expect(putCall.marketCap).toBeCloseTo(5000000000000, 0)
       expect(putCall.netCash).toBe(200)
       expect(putCall.freeCashFlow).toBe(100)
       expect(result).toBeDefined()

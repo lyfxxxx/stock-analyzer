@@ -247,7 +247,12 @@ const stock = ref<StockData | null>(null)
 const loading = ref(true)
 const deleting = ref(false)
 const displayCurrency = ref<CurrencyType>('HKD')
-const exchangeRates = ref<Record<string, number>>({ HKD: 1, USD: 7.75, CNY: 1.10 })
+// Exchange rates based on HKD (API format): 1 HKD = X currency
+const exchangeRates = ref<Record<string, number>>({ 
+  HKD: 1, 
+  USD: 0.127675,  // 1 HKD = 0.127675 USD
+  CNY: 0.874297   // 1 HKD = 0.874297 CNY
+})
 const sortOrder = ref<'asc' | 'desc'>('desc')
 
 const isThisStockUpdating = computed(() =>
@@ -291,9 +296,19 @@ function toggleSortOrder() {
 
 function convertCurrency(value: number, toCurrency: CurrencyType): number {
   const sourceCurrency = stock.value?.baseCurrency || 'HKD'
+  // 由于汇率数据是以HKD为基准的，因此baseCurrency决定了换算的方式
   if (sourceCurrency === toCurrency) return value
-  const rate = exchangeRates.value[toCurrency] || 1
-  return value / rate
+  let rate;
+  if (sourceCurrency === 'HKD') {
+    rate = exchangeRates.value[toCurrency] || 1
+  } else {
+    // HKD --> 目标
+    const hkd2target = exchangeRates.value[toCurrency] || 1
+    // sourceCurrency --> HKD
+    const src2hkd = 1 / (exchangeRates.value[sourceCurrency] || 1)
+    rate = src2hkd * hkd2target
+  }
+  return value * rate
 }
 
 function formatDisplayCurrency(value: number): string {

@@ -66,8 +66,17 @@ function convertCurrency(value: number): number {
   const sourceCurrency = props.sourceCurrency || 'HKD'
   if (sourceCurrency === currency) return value
   const exchangeRates = props.exchangeRates || defaultRates
-  const rate = exchangeRates[currency] || 1
-  return value / rate
+  let rate;
+  if (sourceCurrency === 'HKD') {
+    rate = exchangeRates[currency] || 1
+  } else {
+    // HKD --> 目标
+    const hkd2target = exchangeRates[currency] || 1
+    // sourceCurrency --> HKD
+    const src2hkd = 1 / (exchangeRates[currency] || 1)
+    rate = src2hkd * hkd2target
+  }
+  return value * rate
 }
 
 function getCurrencySymbol(): string {
