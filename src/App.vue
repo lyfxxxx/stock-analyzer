@@ -1,86 +1,107 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
 import ErrorBoundary from './components/ErrorBoundary.vue'
+import ThemeToggle from './components/ThemeToggle.vue'
 </script>
 
 <template>
   <ErrorBoundary>
-    <RouterView />
+    <div class="app-layout">
+      <header class="app-header">
+        <div class="header-inner">
+          <div class="header-brand">
+            <div class="brand-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+                <polyline points="16 7 22 7 22 13"></polyline>
+              </svg>
+            </div>
+            <span class="brand-text">StockAnalyzer</span>
+          </div>
+          <ThemeToggle />
+        </div>
+      </header>
+      <main class="app-main">
+        <RouterView />
+      </main>
+    </div>
   </ErrorBoundary>
 </template>
 
 <style>
-/* Import Fira fonts first */
-@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
+/* App-level styles are now handled by theme.css */
+</style>
 
-/* Global CSS Variables - Dark Theme */
-:root {
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --card-bg: #1e293b;
-  --border-color: #334155;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --primary-color: #f59e0b;
-  --accent-color: #8b5cf6;
-  --success-color: #10b981;
-  --danger-color: #ef4444;
-  --warning-color: #f97316;
+<style scoped>
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-primary);
 }
 
-* {
-  box-sizing: border-box;
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: var(--header-bg);
+  border-bottom: 1px solid var(--header-border);
+  box-shadow: var(--header-shadow);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-body {
-  margin: 0;
-  font-family: 'Fira Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: var(--bg-primary);
+.header-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+  border-radius: var(--radius-lg);
+  color: white;
+}
+
+.brand-text {
+  font-size: 18px;
+  font-weight: 700;
   color: var(--text-primary);
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.02em;
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.app-main {
+  flex: 1;
 }
 
-::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
-}
+@media (max-width: 768px) {
+  .header-inner {
+    padding: 0 16px;
+    height: 52px;
+  }
 
-::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 4px;
-}
+  .brand-text {
+    font-size: 16px;
+  }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
-}
-
-/* Selection styling */
-::selection {
-  background: rgba(245, 158, 11, 0.3);
-  color: var(--text-primary);
-}
-
-/* Focus visible */
-:focus-visible {
-  outline: 2px solid var(--primary-color);
-  outline-offset: 2px;
-}
-
-/* Button reset */
-button {
-  font-family: inherit;
-}
-
-/* Input reset */
-input, select, textarea {
-  font-family: inherit;
+  .brand-icon {
+    width: 28px;
+    height: 28px;
+  }
 }
 </style>

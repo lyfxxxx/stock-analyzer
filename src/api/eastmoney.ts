@@ -4,6 +4,10 @@ import { eastMoneyStockInfoSchema, stockSearchResultSchema } from '@/validation/
 import { logger } from '@/utils/logger'
 import { withRetry, fetchWithTimeout, HttpError } from '@/utils/retry'
 
+declare const __DEV__: boolean
+
+const EASTMONEY_API_BASE = 'https://push2.eastmoney.com/api/qt/stock/get'
+
 export async function fetchEastMoneyStockInfo(code: string, market: 'HK' | 'A'): Promise<ApiStockInfo | null> {
   try {
     // East Money uses different secid format
@@ -18,7 +22,7 @@ export async function fetchEastMoneyStockInfo(code: string, market: 'HK' | 'A'):
     // f57 = code, f58 = name, f116 = total market cap
     const result = await withRetry(async () => {
       const response = await fetchWithTimeout(
-        `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=f57,f58,f116`,
+        `${EASTMONEY_API_BASE}?secid=${secid}&fields=f57,f58,f116`,
         {
           method: 'GET',
           mode: 'cors',
@@ -53,10 +57,10 @@ export async function fetchEastMoneyStockInfo(code: string, market: 'HK' | 'A'):
 
 export async function testEastMoneyAPI(): Promise<ApiTestResult> {
   const start = performance.now()
-  
+
   try {
     const response = await fetch(
-      'https://push2.eastmoney.com/api/qt/stock/get?secid=116.00700&fields=f57,f58',
+      `${EASTMONEY_API_BASE}?secid=116.00700&fields=f57,f58`,
       {
         method: 'GET',
         mode: 'cors'

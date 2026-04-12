@@ -217,6 +217,23 @@ npm run test:watch
 - **API 模块**: 东方财富集成、汇率获取
 - **组件**: Vue 组件单元测试
 
+### 实时 API 集成测试
+
+部分测试会向东方财富 API 发送真实的 HTTP 请求。为避免触发限流，这些测试**默认被禁用**：
+
+```bash
+# 默认测试运行（跳过实时 API 测试）
+npm run test
+
+# 运行包含实时 API 的集成测试
+npm run test:integration
+
+# 或手动设置环境变量
+VITE_LIVE_API_TESTS=true npm run test
+```
+
+**注意**: 实时 API 测试应谨慎运行，以避免触发东方财富的限流机制。
+
 ---
 
 ## 🚀 部署

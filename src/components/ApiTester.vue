@@ -33,85 +33,65 @@
       </div>
     </div>
 
-    <div v-if="tested && !anyAvailable" class="api-warning">
+    <div v-if="tested && !anyAvailable && !testing" class="api-warning">
       ⚠️ API不可用，将无法使用API获取模式
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import type { ApiTestResult } from '@/types/stock'
-import { testEastMoneyAPI } from '@/api/eastmoney'
-import { logger } from '@/utils/logger'
+import { computed } from 'vue'
+import { useStockStore } from '@/stores/stockStore'
 
-const emit = defineEmits<{
-  (e: 'update:available', value: boolean): void
-}>()
+const store = useStockStore()
 
-const testing = ref(false)
-const tested = ref(false)
-const results = ref<ApiTestResult[]>([])
-
-const anyAvailable = computed(() => 
-  results.value.some(r => r.status === 'success')
-)
+const testing = computed(() => store.loading)
+const tested = computed(() => store.apiTestResults.length > 0)
+const results = computed(() => store.apiTestResults)
+const anyAvailable = computed(() => store.isApiAvailable)
 
 async function testAPIs() {
-  testing.value = true
-  tested.value = true
-  
-  try {
-    const eastMoneyResult = await testEastMoneyAPI()
-    results.value = [eastMoneyResult]
-    emit('update:available', anyAvailable.value)
-  } catch (err) {
-    logger.error('ApiTester', 'API test error:', err)
-  } finally {
-    testing.value = false
-  }
-}
-
-if (!tested.value) {
-  testAPIs()
+  await store.testAPIs()
 }
 </script>
 
 <style scoped>
 .api-tester {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 24px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl, 12px);
+  padding: var(--space-4, 16px);
+  margin-bottom: var(--space-6, 24px);
 }
 
 .api-tester-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4, 16px);
 }
 
 .api-tester-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
 .test-button {
-  padding: 8px 16px;
-  background: var(--primary-color);
-  color: var(--bg-primary);
+  padding: 6px 16px;
+  background-color: var(--brand-primary);
+  color: white;
   border: none;
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: var(--radius-md, 6px);
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: opacity var(--transition-fast), background-color var(--transition-fast);
 }
 
 .test-button:hover:not(:disabled) {
-  opacity: 0.9;
+  background-color: var(--brand-primary-hover);
 }
 
 .test-button:disabled {
@@ -122,25 +102,25 @@ if (!tested.value) {
 .api-results {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3, 12px);
 }
 
 .api-result-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px;
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  border-left: 3px solid var(--border-color);
+  padding: var(--space-3, 12px);
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-lg, 8px);
+  border-left: 3px solid var(--border-secondary);
 }
 
 .api-result-item.success {
-  border-left-color: var(--success-color);
+  border-left-color: var(--color-success);
 }
 
 .api-result-item.error {
-  border-left-color: var(--danger-color);
+  border-left-color: var(--color-danger);
 }
 
 .result-status {
@@ -155,11 +135,11 @@ if (!tested.value) {
 }
 
 .success .status-icon {
-  color: var(--success-color);
+  color: var(--color-success);
 }
 
 .error .status-icon {
-  color: var(--danger-color);
+  color: var(--color-danger);
 }
 
 .source-name {
@@ -170,7 +150,7 @@ if (!tested.value) {
 .result-details {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3, 12px);
 }
 
 .message {
@@ -181,18 +161,18 @@ if (!tested.value) {
 .latency {
   font-size: 12px;
   color: var(--text-muted);
-  background: var(--bg-primary);
+  background-color: var(--bg-primary);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm, 4px);
 }
 
 .api-warning {
-  margin-top: 12px;
+  margin-top: var(--space-3, 12px);
   padding: 10px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 6px;
-  color: var(--danger-color);
+  background-color: var(--color-danger-bg);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md, 6px);
+  color: var(--color-danger-text);
   font-size: 14px;
 }
 

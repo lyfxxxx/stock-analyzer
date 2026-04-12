@@ -1,5 +1,5 @@
 <template>
-  <div class="chart-container">
+  <div class="chart-container" :class="{ 'chart-dark': isDark }">
     <div class="chart-header">
       <h4>{{ title }}</h4>
       <div class="chart-legend">
@@ -18,13 +18,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { init, use, graphic } from 'echarts/core'
 import { BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { ECharts, EChartsCoreOption } from 'echarts/core'
 import type { YearlyData, CurrencyType } from '@/types/stock'
+import { useTheme } from '@/composables/useTheme'
 
 use([BarChart, GridComponent, TooltipComponent, CanvasRenderer])
 
@@ -37,12 +38,28 @@ const props = defineProps<{
   sourceCurrency?: CurrencyType
 }>()
 
+const { isDark } = useTheme()
+
 const chartRef = ref<HTMLElement | null>(null)
 let chart: ECharts | null = null
+let resizeHandler: (() => void) | null = null
 
 const defaultRates: Record<string, number> = { HKD: 1, USD: 7.75, CNY: 1.10 }
 const currentCurrency = ref<CurrencyType>('HKD')
 const rates = ref<Record<string, number>>(defaultRates)
+
+function getThemeColors() {
+  const style = getComputedStyle(document.documentElement)
+  return {
+    textPrimary: style.getPropertyValue('--text-primary').trim() || (isDark.value ? '#f1f5f9' : '#0f1729'),
+    textSecondary: style.getPropertyValue('--text-secondary').trim() || (isDark.value ? '#94a3b8' : '#4a5568'),
+    textMuted: style.getPropertyValue('--text-muted').trim() || (isDark.value ? '#5f6b7f' : '#8b95a8'),
+    borderPrimary: style.getPropertyValue('--border-secondary').trim() || (isDark.value ? '#2a3654' : '#d0d4df'),
+    bgCard: style.getPropertyValue('--bg-card').trim() || (isDark.value ? '#151d30' : '#ffffff'),
+    brandPrimary: style.getPropertyValue('--brand-primary').trim() || (isDark.value ? '#f59e0b' : '#d97706'),
+    projectedColor: style.getPropertyValue('--projected-color').trim() || (isDark.value ? '#a78bfa' : '#7c3aed'),
+  }
+}
 
 function convertCurrency(value: number): number {
   const currency = props.displayCurrency || 'HKD'
@@ -67,26 +84,12 @@ function updateCurrency() {
   }
 }
 
-function initChart() {
-  if (!chartRef.value) return
-  
-  updateCurrency()
-  chart = init(chartRef.value, 'dark')
-  updateChart()
-  
-  const resizeHandler = () => chart?.resize()
-  window.addEventListener('resize', resizeHandler)
-  
-  return () => {
-    window.removeEventListener('resize', resizeHandler)
-  }
-}
-
 function updateChart() {
   if (!chart) return
-  
+
   updateCurrency()
-  
+
+  const colors = getThemeColors()
   const sortedData = [...props.yearlyData].sort((a, b) => a.year - b.year)
   const years = sortedData.map(d => d.year.toString())
   const values = sortedData.map(d =>
@@ -98,19 +101,19 @@ function updateChart() {
     }
     return d.netProfitProjected ?? d.isProjected ?? false
   })
-  
+
   const currencySymbol = getCurrencySymbol()
-  
+
   const actualColor = new graphic.LinearGradient(0, 0, 0, 1, [
-    { offset: 0, color: '#f59e0b' },
-    { offset: 1, color: '#d97706' }
+    { offset: 0, color: colors.brandPrimary },
+    { offset: 1, color: isDark.value ? '#b45309' : '#92400e' }
   ])
 
   const projectedColor = new graphic.LinearGradient(0, 0, 0, 1, [
-    { offset: 0, color: '#a78bfa' },
-    { offset: 1, color: '#7c3aed' }
+    { offset: 0, color: colors.projectedColor },
+    { offset: 1, color: isDark.value ? '#6d28d9' : '#5b21b6' }
   ])
-  
+
   const option: EChartsCoreOption = {
     backgroundColor: 'transparent',
     grid: {
@@ -124,10 +127,10 @@ function updateChart() {
       type: 'category',
       data: years,
       axisLine: {
-        lineStyle: { color: '#475569' }
+        lineStyle: { color: colors.borderPrimary }
       },
       axisLabel: {
-        color: '#94a3b8'
+        color: colors.textSecondary
       }
     },
     yAxis: {
@@ -136,24 +139,24 @@ function updateChart() {
         show: false
       },
       axisLabel: {
-        color: '#94a3b8',
+        color: colors.textSecondary,
         formatter: (value: number) => {
-          return value >= 10000 ? `${(value / 10000).toFixed(1)}万` : String(value)
+          return value >= 10000 ? `${(value / 10000).toFixed(1)}万亿` : String(value)
         }
       },
       splitLine: {
         lineStyle: {
-          color: '#334155',
+          color: colors.borderPrimary,
           type: 'dashed'
         }
       }
     },
     tooltip: {
       trigger: 'axis',
-      backgroundColor: '#1e293b',
-      borderColor: '#475569',
+      backgroundColor: colors.bgCard,
+      borderColor: colors.borderPrimary,
       textStyle: {
-        color: '#f8fafc'
+        color: colors.textPrimary
       },
       formatter: (params: any) => {
         const year = params[0].name
@@ -163,7 +166,7 @@ function updateChart() {
         const label = isProj ? ' (预测值)' : ''
         return `
           <div style="font-weight: 600; margin-bottom: 4px;">${year}年${label}</div>
-          <div style="color: ${isProj ? '#9ca3af' : '#f59e0b'};">
+          <div style="color: ${isProj ? colors.projectedColor : colors.brandPrimary};">
             ${currencySymbol}${value.toFixed(2)}亿
           </div>
         `
@@ -187,8 +190,20 @@ function updateChart() {
       }
     ]
   }
-  
-  chart.setOption(option)
+
+  chart.setOption(option, true)
+}
+
+function initChart() {
+  if (!chartRef.value) return
+
+  const theme = isDark.value ? 'dark' : undefined
+  chart = init(chartRef.value, theme)
+
+  updateChart()
+
+  resizeHandler = () => chart?.resize()
+  window.addEventListener('resize', resizeHandler)
 }
 
 onMounted(() => {
@@ -196,20 +211,33 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (resizeHandler) {
+    window.removeEventListener('resize', resizeHandler)
+  }
   chart?.dispose()
 })
 
 watch(() => [props.yearlyData, props.displayCurrency, props.exchangeRates], () => {
   updateChart()
 }, { deep: true })
+
+watch(isDark, () => {
+  // Re-create chart on theme change to apply new colors
+  if (resizeHandler) {
+    window.removeEventListener('resize', resizeHandler)
+  }
+  chart?.dispose()
+  initChart()
+})
 </script>
 
 <style scoped>
 .chart-container {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
   padding: 20px;
+  transition: background-color var(--transition-slow), border-color var(--transition-slow);
 }
 
 .chart-header {
@@ -221,7 +249,8 @@ watch(() => [props.yearlyData, props.displayCurrency, props.exchangeRates], () =
 
 .chart-header h4 {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
@@ -245,11 +274,11 @@ watch(() => [props.yearlyData, props.displayCurrency, props.exchangeRates], () =
 }
 
 .legend-dot.actual {
-  background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+  background: linear-gradient(180deg, var(--brand-primary) 0%, var(--brand-primary-hover, var(--brand-primary)) 100%);
 }
 
 .legend-dot.projected {
-  background: linear-gradient(180deg, #a78bfa 0%, #7c3aed 100%);
+  background: linear-gradient(180deg, var(--projected-color) 0%, var(--brand-accent, var(--projected-color)) 100%);
 }
 
 .chart {
@@ -260,13 +289,13 @@ watch(() => [props.yearlyData, props.displayCurrency, props.exchangeRates], () =
   .chart {
     height: 250px;
   }
-  
+
   .chart-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: 8px;
   }
-  
+
   .chart-legend {
     font-size: 11px;
     gap: 12px;

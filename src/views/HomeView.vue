@@ -1,73 +1,122 @@
 <template>
   <div class="home-view">
-    <header class="page-header">
-      <div class="header-content">
-        <div class="logo">
-          <span class="logo-icon">S</span>
-          <h1>StockAnalyzer</h1>
+    <div class="api-tester-container">
+      <ApiTester />
+    </div>
+
+    <div v-if="stockStore.loading" class="loading-state">
+      <div class="spinner"></div>
+      <p>加载中...</p>
+    </div>
+
+    <div v-else-if="stockStore.stockCount === 0" class="empty-state">
+      <div class="empty-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+          <polyline points="16 7 22 7 22 13"></polyline>
+        </svg>
+      </div>
+      <h3>还没有股票数据</h3>
+      <p>点击右上角"新增"开始分析</p>
+      <button class="add-button" @click="goToAdd">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        新增股票
+      </button>
+    </div>
+
+    <template v-else>
+      <!-- Stats Bar -->
+      <div class="stats-bar">
+        <div class="stat-item">
+          <span class="stat-value font-mono-nums">{{ stockStore.stockCount }}</span>
+          <span class="stat-label">只股票</span>
         </div>
-        <div class="header-actions">
-          <button 
-            v-if="stockStore.stockCount > 0" 
-            class="update-all-button" 
-            :disabled="stockStore.isUpdatingAllStocks"
-            @click="refreshAllMarketCaps"
-          >
-            <span v-if="stockStore.isUpdatingAllStocks" class="spinner-small"></span>
-            <span v-else>↻</span>
-            <span v-if="stockStore.isUpdatingAllStocks && stockStore.updateProgress.total > 0">
-              {{ stockStore.updateProgress.updated }}/{{ stockStore.updateProgress.total }}
-            </span>
-            <span v-else>更新全部</span>
-          </button>
-          <button class="add-button" @click="goToAdd">
-            <span class="btn-icon">+</span>
-            新增股票
-          </button>
+        <div class="stat-item">
+          <span class="stat-value font-mono-nums val-low">{{ lowValCount }}</span>
+          <span class="stat-label">低估值</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-value font-mono-nums">{{ hkCount }}</span>
+          <span class="stat-label">港股</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value font-mono-nums">{{ ashareCount }}</span>
+          <span class="stat-label">A股</span>
         </div>
       </div>
-    </header>
 
-    <main class="main-content">
-      <ApiTester @update:available="handleApiAvailability" />
-      
-      <div v-if="stockStore.loading" class="loading-state">
-        <div class="spinner"></div>
-        <p>加载中...</p>
-      </div>
-
-      <div v-else-if="stockStore.stockCount === 0" class="empty-state">
-        <div class="empty-icon">S</div>
-        <h3>还没有股票数据</h3>
-        <p>点击右上角"新增股票"开始分析</p>
-      </div>
-
-      <template v-else>
-        <div class="search-bar">
-          <input 
-            v-model="searchQuery" 
-            type="text" 
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="search-wrapper">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            v-model="searchQuery"
+            type="text"
             placeholder="搜索股票名称或代码..."
             class="search-input"
           >
-          <span v-if="searchQuery" class="search-clear" @click="searchQuery = ''">✕</span>
+          <button v-if="searchQuery" class="search-clear" @click="searchQuery = ''">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
 
-        <div v-if="filteredStocks.length === 0" class="no-results">
-          <p>没有找到匹配的股票</p>
+        <div class="toolbar-actions">
+          <ViewToggle v-model="viewMode" />
+          <button
+            v-if="stockStore.stockCount > 0"
+            class="update-all-button"
+            :disabled="stockStore.isUpdatingAllStocks || !stockStore.isApiAvailable"
+            @click="refreshAllMarketCaps"
+          >
+            <span v-if="stockStore.isUpdatingAllStocks" class="spinner-sm"></span>
+            <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+            <span v-if="stockStore.isUpdatingAllStocks && stockStore.updateProgress.total > 0">
+              {{ stockStore.updateProgress.updated }}/{{ stockStore.updateProgress.total }}
+            </span>
+            <span v-else-if="!stockStore.isUpdatingAllStocks">更新全部</span>
+          </button>
+          <button class="add-button" @click="goToAdd">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span class="add-label">新增</span>
+          </button>
         </div>
+      </div>
 
-        <div v-else class="stocks-grid">
-          <StockCard
-            v-for="stock in filteredStocks"
-            :key="stock.id"
-            :stock="stock"
-            :is-updating="stockStore.currentlyUpdatingIds.has(stock.id)"
-            @click="goToDetail(stock.id)"
-          />
-        </div>
-      </template>
-    </main>
+      <!-- Content -->
+      <div v-if="filteredStocks.length === 0" class="no-results">
+        <p>没有找到匹配的股票</p>
+      </div>
+
+      <div v-if="viewMode === 'card'" class="stocks-grid">
+        <StockCard
+          v-for="stock in filteredStocks"
+          :key="stock.id"
+          :stock="stock"
+          :is-updating="stockStore.currentlyUpdatingIds.has(stock.id)"
+          @click="goToDetail(stock.id)"
+        />
+      </div>
+      <div v-else class="table-container">
+        <StockTable
+          :stocks="filteredStocks"
+          :updating-ids="stockStore.currentlyUpdatingIds"
+          @click="(stock: StockData) => goToDetail(stock.id)"
+        />
+      </div>
+    </template>
   </div>
 </template>
 
@@ -75,25 +124,50 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStockStore } from '@/stores/stockStore'
+import type { StockData } from '@/types/stock'
 import ApiTester from '@/components/ApiTester.vue'
 import StockCard from '@/components/StockCard.vue'
+import StockTable from '@/components/StockTable.vue'
+import ViewToggle from '@/components/ViewToggle.vue'
 
 const router = useRouter()
 const stockStore = useStockStore()
 
-const isApiAvailable = ref(false)
 const searchQuery = ref('')
+const viewMode = ref<'card' | 'table'>('card')
+
+// Device-aware default: mobile defaults to table
+onMounted(() => {
+  const saved = localStorage.getItem('stock-analyzer-view')
+  if (saved === 'card' || saved === 'table') {
+    viewMode.value = saved
+  } else if (window.innerWidth < 768) {
+    viewMode.value = 'table'
+  }
+})
 
 const filteredStocks = computed(() => {
   if (!searchQuery.value.trim()) {
     return stockStore.sortedStocks
   }
   const query = searchQuery.value.toLowerCase()
-  return stockStore.stocks.filter(stock => 
+  return stockStore.stocks.filter(stock =>
     stock.name.toLowerCase().includes(query) ||
     stock.code.toLowerCase().includes(query)
   )
 })
+
+const lowValCount = computed(() =>
+  stockStore.stocks.filter(s => s.valuation1 !== null && s.valuation1 < 10).length
+)
+
+const hkCount = computed(() =>
+  stockStore.stocks.filter(s => s.market === 'HK').length
+)
+
+const ashareCount = computed(() =>
+  stockStore.stocks.filter(s => s.market === 'A').length
+)
 
 const STORAGE_KEY = 'stock_last_refresh_date'
 
@@ -112,8 +186,8 @@ function updateRefreshDate() {
 }
 
 async function refreshAllMarketCaps() {
-  if (!isApiAvailable.value || stockStore.isUpdatingAllStocks) return
-  
+  if (!stockStore.isApiAvailable || stockStore.isUpdatingAllStocks) return
+
   try {
     const ids = stockStore.stocks.map(s => s.id)
     await stockStore.updateAllStocks(ids)
@@ -121,10 +195,6 @@ async function refreshAllMarketCaps() {
   } finally {
     // isUpdatingAllStocks is managed by the store
   }
-}
-
-function handleApiAvailability(available: boolean) {
-  isApiAvailable.value = available
 }
 
 function goToAdd() {
@@ -138,9 +208,8 @@ function goToDetail(id: string) {
 onMounted(async () => {
   await stockStore.loadStocks()
   await stockStore.testAPIs()
-  isApiAvailable.value = stockStore.isApiAvailable
-  
-  if (isApiAvailable.value && stockStore.stocks.length > 0 && shouldRefreshToday()) {
+
+  if (stockStore.isApiAvailable && stockStore.stocks.length > 0 && shouldRefreshToday()) {
     await refreshAllMarketCaps()
   }
 })
@@ -149,127 +218,191 @@ onMounted(async () => {
 <style scoped>
 .home-view {
   min-height: 100vh;
-  background: var(--bg-primary);
+  background-color: var(--bg-primary);
 }
 
-.page-header {
-  background: var(--card-bg);
-  border-bottom: 1px solid var(--border-color);
-  padding: 0 24px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.header-content {
+.api-tester-container {
   max-width: 1400px;
   margin: 0 auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  height: 64px;
+  padding: 16px 24px 0;
 }
 
-.header-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.logo {
+/* Stats Bar */
+.stats-bar {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 16px 24px 0;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
-.logo-icon {
-  width: 36px;
-  height: 36px;
-  background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
-  border-radius: 8px;
+.stat-item {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  color: white;
-  font-size: 18px;
+  align-items: baseline;
+  gap: 6px;
 }
 
-.logo h1 {
-  margin: 0;
-  font-size: 22px;
+.stat-value {
+  font-size: 20px;
   font-weight: 700;
   color: var(--text-primary);
-  background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.stat-divider {
+  width: 1px;
+  height: 20px;
+  background-color: var(--border-secondary);
+  margin: 0 4px;
+}
+
+/* Toolbar */
+.toolbar {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 12px 24px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.search-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px 16px 10px 36px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg, 8px);
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  background-color: var(--bg-input);
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.search-clear:hover {
+  color: var(--text-primary);
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Buttons */
+.update-all-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg, 8px);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.update-all-button:hover:not(:disabled) {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
+}
+
+.update-all-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .add-button {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background: var(--accent-color);
-  color: white;
+  gap: 6px;
+  padding: 8px 16px;
+  background-color: var(--brand-primary);
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
+  border-radius: var(--radius-lg, 8px);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-sans);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
 }
 
 .add-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+  background-color: var(--brand-primary-hover);
 }
 
-.update-all-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
+.add-label {
+  display: inline;
 }
 
-.update-all-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-}
-
-.update-all-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.spinner-small {
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-.btn-icon {
-  font-size: 18px;
-  font-weight: 300;
-}
-
-.main-content {
+/* Content */
+.stocks-grid {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 20px 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
 }
 
+.table-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px 24px;
+}
+
+/* Loading */
 .loading-state {
   display: flex;
   flex-direction: column;
@@ -280,12 +413,12 @@ onMounted(async () => {
 }
 
 .spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--border-color);
-  border-top-color: var(--primary-color);
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-secondary);
+  border-top-color: var(--brand-primary);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
   margin-bottom: 16px;
 }
 
@@ -293,6 +426,16 @@ onMounted(async () => {
   to { transform: rotate(360deg); }
 }
 
+.spinner-sm {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Empty State */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -303,126 +446,78 @@ onMounted(async () => {
 }
 
 .empty-icon {
-  width: 80px;
-  height: 80px;
-  background: var(--card-bg);
-  border: 2px solid var(--border-color);
-  border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 36px;
-  font-weight: 700;
-  color: var(--primary-color);
-  margin-bottom: 24px;
+  width: 64px;
+  height: 64px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-2xl, 16px);
+  color: var(--brand-primary);
+  margin-bottom: 20px;
 }
 
 .empty-state h3 {
   margin: 0 0 8px 0;
-  font-size: 20px;
+  font-size: 18px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
 .empty-state p {
-  margin: 0;
+  margin: 0 0 24px 0;
   color: var(--text-secondary);
-}
-
-.search-bar {
-  position: relative;
-  margin-bottom: 24px;
-}
-
-.search-input {
-  width: 100%;
-  padding: 12px 16px;
-  padding-right: 40px;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
   font-size: 14px;
-  color: var(--text-primary);
-  transition: border-color 0.2s;
 }
 
-.search-input:focus {
-  outline: none;
-  border-color: var(--primary-color);
-}
-
-.search-input::placeholder {
-  color: var(--text-muted);
-}
-
-.search-clear {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  cursor: pointer;
-  color: var(--text-muted);
+.empty-state .add-button {
+  padding: 10px 24px;
   font-size: 14px;
-  padding: 4px;
-}
-
-.search-clear:hover {
-  color: var(--text-primary);
 }
 
 .no-results {
+  max-width: 1400px;
+  margin: 0 auto;
   text-align: center;
   padding: 40px 20px;
   color: var(--text-secondary);
 }
 
-.stocks-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 24px;
-}
-
+/* Responsive */
 @media (max-width: 768px) {
-  .page-header {
-    padding: 0 16px;
+  .api-tester-container {
+    padding: 12px 16px 0;
   }
 
-  .header-content {
-    height: 56px;
+  .stats-bar {
+    padding: 12px 16px 0;
+    gap: 12px;
   }
 
-  .logo h1 {
-    font-size: 18px;
+  .toolbar {
+    padding: 10px 16px 0;
+    flex-wrap: wrap;
   }
 
-  .logo-icon {
-    width: 32px;
-    height: 32px;
-    font-size: 16px;
+  .search-wrapper {
+    flex: 1 1 100%;
+    order: 2;
   }
 
-  .header-actions {
-    gap: 8px;
+  .toolbar-actions {
+    flex: 1;
+    justify-content: space-between;
   }
 
-  .add-button,
-  .update-all-button {
-    padding: 6px 10px;
-    font-size: 12px;
-    border-radius: 6px;
-    white-space: nowrap;
+  .add-label {
+    display: none;
   }
 
-  .add-button .btn-icon {
-    font-size: 16px;
-  }
-
-  .main-content {
-    padding: 16px;
-  }
-
-  .stocks-grid {
+  .stocks-grid,
+  .table-container {
+    padding: 12px 16px;
     grid-template-columns: 1fr;
-    gap: 16px;
   }
 }
 </style>

@@ -1,6 +1,25 @@
 import { describe, it, expect } from 'vitest'
 
-describe('HK Stock (6862 Haidilao) - Real API Integration', () => {
+/**
+ * Live API Integration Tests
+ *
+ * These tests make real HTTP requests to East Money API.
+ * To prevent rate limiting during development, they are skipped by default.
+ *
+ * To run these tests:
+ *   npm run test:integration
+ *   # or
+ *   VITE_LIVE_API_TESTS=true npm test
+ *
+ * Environment Variable:
+ *   VITE_LIVE_API_TESTS - Set to 'true' to enable live API tests
+ */
+const RUN_LIVE_TESTS = import.meta.env.VITE_LIVE_API_TESTS === 'true'
+
+// Use conditional describe to skip tests when env var is not set
+const describeLive = RUN_LIVE_TESTS ? describe : describe.skip
+
+describeLive('HK Stock (6862 Haidilao) - Real API Integration', () => {
   it('should calculate current ratio and PE from real API data', async () => {
     const { fetchHKStockFinancialReport } = await import('@/api/financialReportHK')
 
@@ -61,7 +80,7 @@ describe('HK Stock (6862 Haidilao) - Real API Integration', () => {
   })
 })
 
-describe('A-Stock (600941 China Mobile) - Real API Integration', () => {
+describeLive('A-Stock (600941 China Mobile) - Real API Integration', () => {
   it('should calculate current ratio and PE from real API data', async () => {
     const { fetchAStockFinancialReport } = await import('@/api/financialReportA')
 
@@ -101,7 +120,7 @@ describe('A-Stock (600941 China Mobile) - Real API Integration', () => {
   })
 })
 
-describe('A-Stock (002027 Focus Media) - Real API Integration', () => {
+describeLive('A-Stock (002027 Focus Media) - Real API Integration', () => {
   it('should have correct CNY base currency for A-share stock', async () => {
     const { fetchAStockFinancialReport } = await import('@/api/financialReportA')
 

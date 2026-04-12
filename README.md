@@ -217,6 +217,23 @@ npm run test:watch
 - **API**: East Money integration, Exchange rates
 - **Components**: Vue component unit tests
 
+### Live API Integration Tests
+
+Some tests make real HTTP requests to East Money API. To prevent rate limiting, these are **disabled by default**:
+
+```bash
+# Default test run (skips live API tests)
+npm run test
+
+# Run with live API integration tests
+npm run test:integration
+
+# Or set environment variable manually
+VITE_LIVE_API_TESTS=true npm run test
+```
+
+**Note**: Live API tests should be run sparingly to avoid triggering rate limits from East Money.
+
 ---
 
 ## 🚀 Deployment

@@ -146,58 +146,60 @@ function getFileErrors(type: FileType): ValidationError[] {
 
 <style scoped>
 .excel-uploader {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6, 24px);
 }
 
 .upload-section {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: var(--space-4, 16px);
 }
 
 .upload-item {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 16px;
-  transition: border-color 0.2s;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl, 12px);
+  padding: var(--space-4, 16px);
+  transition: border-color var(--transition-base), background-color var(--transition-base);
 }
 
 .upload-item.has-file {
-  border-color: var(--success-color);
+  border-color: var(--color-success);
+  background-color: var(--color-success-bg);
 }
 
 .upload-item.error {
-  border-color: var(--danger-color);
+  border-color: var(--color-danger);
+  background-color: var(--color-danger-bg);
 }
 
 .upload-label {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3, 12px);
   font-size: 14px;
   font-weight: 500;
   color: var(--text-primary);
 }
 
 .required {
-  color: var(--danger-color);
+  color: var(--color-danger);
 }
 
 .upload-zone {
   position: relative;
-  border: 2px dashed var(--border-color);
-  border-radius: 6px;
+  border: 2px dashed var(--border-secondary);
+  border-radius: var(--radius-lg, 8px);
   padding: 20px;
   text-align: center;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-base);
 }
 
 .upload-zone:hover {
-  border-color: var(--primary-color);
-  background: rgba(245, 158, 11, 0.05);
+  border-color: var(--brand-primary);
+  background-color: var(--brand-primary-light);
 }
 
 .file-input {
@@ -214,6 +216,7 @@ function getFileErrors(type: FileType): ValidationError[] {
 .upload-icon {
   font-size: 24px;
   opacity: 0.6;
+  color: var(--text-muted);
 }
 
 .upload-text {
@@ -234,7 +237,7 @@ function getFileErrors(type: FileType): ValidationError[] {
 }
 
 .file-icon {
-  color: var(--success-color);
+  color: var(--color-success);
   font-weight: bold;
 }
 
@@ -255,36 +258,36 @@ function getFileErrors(type: FileType): ValidationError[] {
   padding: 4px;
   font-size: 14px;
   line-height: 1;
-  transition: color 0.2s;
+  transition: color var(--transition-fast);
 }
 
 .remove-btn:hover {
-  color: var(--danger-color);
+  color: var(--color-danger);
 }
 
 .file-errors {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(239, 68, 68, 0.3);
+  margin-top: var(--space-2, 8px);
+  padding-top: var(--space-2, 8px);
+  border-top: 1px solid var(--color-danger-bg);
 }
 
 .error-item {
   font-size: 12px;
-  color: var(--danger-color);
+  color: var(--color-danger-text);
   margin-bottom: 4px;
 }
 
 .validation-summary {
-  margin-top: 16px;
-  padding: 16px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 8px;
+  margin-top: var(--space-4, 16px);
+  padding: var(--space-4, 16px);
+  background-color: var(--color-danger-bg);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-lg, 8px);
 }
 
 .validation-summary h4 {
-  margin: 0 0 12px 0;
-  color: var(--danger-color);
+  margin: 0 0 var(--space-3, 12px) 0;
+  color: var(--color-danger-text);
   font-size: 14px;
 }
 
@@ -300,7 +303,7 @@ function getFileErrors(type: FileType): ValidationError[] {
 }
 
 .validation-summary li.parse-error {
-  color: var(--danger-color);
+  color: var(--color-danger-text);
   font-weight: 500;
 }
 

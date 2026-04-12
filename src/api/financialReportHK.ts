@@ -31,6 +31,22 @@ import {
   type ReportPeriodType,
 } from '@/utils/calculator'
 
+declare const __DEV__: boolean
+
+const BASE_URL = 'https://datacenter.eastmoney.com/securities/api/data/v1/get'
+
+interface ApiResponse<T> {
+  version: string
+  result: {
+    pages: number
+    data: T[]
+    count: number
+  } | null
+  success: boolean
+  message: string
+  code: number
+}
+
 const BALANCE_CODES = {
   CASH_AND_EQUIVALENTS: '004002010',
   SHORT_TERM_DEPOSITS: '004002011',
@@ -53,20 +69,6 @@ const CASH_FLOW_CODES = {
   INVESTMENT_OTHER: '005997',
   INTANGIBLE_ASSETS: '005007',
 } as const
-
-const BASE_URL = 'https://datacenter.eastmoney.com/securities/api/data/v1/get'
-
-interface ApiResponse<T> {
-  version: string
-  result: {
-    pages: number
-    data: T[]
-    count: number
-  } | null
-  success: boolean
-  message: string
-  code: number
-}
 
 function formatSecucode(code: string): string {
   if (code.includes('.HK')) {

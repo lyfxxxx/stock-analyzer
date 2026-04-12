@@ -1,33 +1,33 @@
 <template>
-  <div class="stock-detail-view">
-    <div v-if="isThisStockUpdating" class="updating-full-overlay">
+  <div class="detail-view">
+    <div v-if="isThisStockUpdating" class="updating-overlay">
       <div class="spinner"></div>
       <p>正在更新财报数据...</p>
       <p class="update-hint">请稍候</p>
     </div>
 
-    <header class="page-header">
-      <div class="header-content">
+    <!-- Sub-header -->
+    <div class="sub-header">
+      <div class="sub-header-inner">
         <button class="back-button" @click="goBack">
-          <span>←</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
           返回
         </button>
-        <h1 v-if="stock">{{ stock.name }} ({{ stock.code }})</h1>
-        <div class="header-actions">
-          <button
-            class="update-button"
-            :disabled="isThisStockUpdating"
-            @click="handleUpdateFinancialData"
-          >
-            <span v-if="isThisStockUpdating" class="spinner-small"></span>
-            <span v-else>↻</span>
-            更新财报数据
+        <h1 v-if="stock" class="page-title">{{ stock.name }} <span class="page-code font-mono-nums">{{ stock.code }}</span></h1>
+        <div class="sub-header-actions">
+          <button class="action-btn update-btn" :disabled="isThisStockUpdating" @click="handleUpdateFinancialData">
+            <span v-if="isThisStockUpdating" class="spinner-sm"></span>
+            <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+            更新财报
           </button>
         </div>
       </div>
-    </header>
+    </div>
 
-    <main class="main-content" v-if="stock">
+    <main v-if="stock" class="detail-content">
       <!-- Currency Selector -->
       <div class="currency-bar">
         <label>显示币种：</label>
@@ -39,132 +39,110 @@
       </div>
 
       <!-- Overview Cards -->
-      <div class="overview-section">
+      <div class="overview-grid">
         <div class="overview-card">
-          <span class="label">当前市值</span>
-          <span class="value">{{ formatDisplayCurrency(stock.marketCap) }}</span>
+          <span class="card-label">当前市值</span>
+          <span class="card-value font-mono-nums">{{ formatDisplayCurrency(stock.marketCap) }}</span>
         </div>
         <div class="overview-card">
-          <span class="label">净现金</span>
-          <span class="value">{{ formatDisplayCurrency(stock.netCash) }}</span>
+          <span class="card-label">净现金</span>
+          <span class="card-value font-mono-nums">{{ formatDisplayCurrency(stock.netCash) }}</span>
         </div>
-        <div class="overview-card" :class="{ 'projected': stock.isUsingProjectedData }">
-          <span class="label">
+        <div class="overview-card" :class="{ 'projected': stock.freeCashFlowProjected }">
+          <span class="card-label">
             自由现金流
             <span v-if="stock.freeCashFlowProjected" class="projected-badge">预测</span>
           </span>
-          <span class="value">{{ formatDisplayCurrency(stock.freeCashFlow) }}</span>
+          <span class="card-value font-mono-nums" :class="{ 'text-positive': stock.freeCashFlow > 0, 'text-negative': stock.freeCashFlow < 0 }">
+            {{ formatDisplayCurrency(stock.freeCashFlow) }}
+          </span>
         </div>
         <div class="overview-card" :class="{ 'projected': stock.netProfitProjected }">
-          <span class="label">
+          <span class="card-label">
             净利润
             <span v-if="stock.netProfitProjected" class="projected-badge">预测</span>
           </span>
-          <span class="value">{{ formatDisplayCurrency(stock.netProfit) }}</span>
+          <span class="card-value font-mono-nums" :class="{ 'text-positive': stock.netProfit > 0, 'text-negative': stock.netProfit < 0 }">
+            {{ formatDisplayCurrency(stock.netProfit) }}
+          </span>
         </div>
         <div class="overview-card">
-          <span class="label">
+          <span class="card-label">
             PE
-            <span class="tooltip-trigger">
+            <span class="info-trigger" @click.stop>
               ⓘ
-              <span class="tooltip-text">PE = 市值 / 净利润</span>
+              <span class="info-text">PE = 市值 / 净利润</span>
             </span>
             <span v-if="stock.peRatioProjected" class="projected-badge">预测</span>
           </span>
-          <span class="value">
+          <span class="card-value font-mono-nums" :class="getPeClass(stock.peRatio)">
             <template v-if="stock.peRatio !== null">{{ stock.peRatio.toFixed(1) }}x</template>
-            <template v-else>N/A</template>
+            <template v-else><span class="na-text">N/A</span></template>
           </span>
         </div>
         <div class="overview-card">
-          <span class="label">
+          <span class="card-label">
             流动比率
-            <span class="tooltip-trigger">
+            <span class="info-trigger" @click.stop>
               ⓘ
-              <span class="tooltip-text">流动比率 = 流动资产 / 流动负债</span>
+              <span class="info-text">流动比率 = 流动资产 / 流动负债</span>
             </span>
             <span v-if="stock.currentRatioProjected" class="projected-badge">预测</span>
           </span>
-          <span class="value">
+          <span class="card-value font-mono-nums" :class="getCurrentRatioClass(stock.currentRatio)">
             <template v-if="stock.currentRatio !== null">{{ stock.currentRatio.toFixed(2) }}</template>
-            <template v-else>N/A</template>
+            <template v-else><span class="na-text">N/A</span></template>
           </span>
         </div>
       </div>
 
-      <!-- Valuation Results -->
-      <div class="valuation-section">
-        <h2>估值分析</h2>
+      <!-- Valuation Analysis -->
+      <section class="section-card">
+        <h2 class="section-title">估值分析</h2>
         <div class="valuation-grid">
-          <div class="valuation-box" :class="{ 'projected': stock.isUsingProjectedData }">
+          <div class="valuation-box" :class="[getValuationBgClass(getVal1()), { 'projected': stock.isUsingProjectedData }]">
             <div class="val-header">
-              <span class="val-title">
-                估值1
-                <span v-if="stock.isUsingProjectedData" class="projected-badge">预测</span>
-              </span>
+              <span class="val-title">估值1 <span v-if="stock.isUsingProjectedData" class="projected-badge">预测</span></span>
               <span class="val-formula" v-if="stock.currentRatio !== null && stock.currentRatio < 1.5">
-                市值 / 自由现金流
-                <span class="method-note">(流动比率 &lt; 1.5)</span>
+                市值 / FCF <span class="method-note">(流动比率 &lt; 1.5)</span>
               </span>
               <span class="val-formula" v-else>
-                (市值 - 净现金) / 自由现金流
-                <span class="method-note">(流动比率 ≥ 1.5)</span>
+                (市值 - 净现金) / FCF <span class="method-note">(流动比率 ≥ 1.5)</span>
               </span>
             </div>
-            <div class="val-result" :class="getValuationClass(stock.currentRatio !== null && stock.currentRatio < 1.5 && stock.freeCashFlow > 0 ? stock.marketCap / stock.freeCashFlow : stock.valuation1)">
+            <div class="val-result font-mono-nums" :class="getValuationClass(getVal1())">
               <template v-if="stock.currentRatio !== null && stock.currentRatio < 1.5">
-                <template v-if="stock.freeCashFlow > 0">
-                  {{ (stock.marketCap / stock.freeCashFlow).toFixed(2) }}
-                </template>
+                <template v-if="stock.freeCashFlow > 0">{{ (stock.marketCap / stock.freeCashFlow).toFixed(2) }}</template>
                 <template v-else>
-                  <span class="na-value">N/A</span>
-                  <span class="tooltip-trigger">
-                    ⓘ
-                    <span class="tooltip-text">自由现金流为负时不计算估值</span>
-                  </span>
+                  <span class="na-text">N/A</span>
+                  <span class="info-trigger" @click.stop>⇢<span class="info-text">自由现金流为负时不计算估值</span></span>
                 </template>
               </template>
               <template v-else>
-                <template v-if="stock.valuation1 !== null">
-                  {{ stock.valuation1.toFixed(2) }}
-                </template>
+                <template v-if="stock.valuation1 !== null">{{ stock.valuation1.toFixed(2) }}</template>
                 <template v-else>
-                  <span class="na-value">N/A</span>
-                  <span class="tooltip-trigger">
-                    ⓘ
-                    <span class="tooltip-text">自由现金流为负时不计算估值</span>
-                  </span>
+                  <span class="na-text">N/A</span>
+                  <span class="info-trigger" @click.stop>⇢<span class="info-text">自由现金流为负时不计算估值</span></span>
                 </template>
               </template>
             </div>
           </div>
-          <div class="valuation-box" :class="{ 'projected': stock.isUsingProjectedData }">
+          <div class="valuation-box" :class="[getValuationBgClass(getVal2()), { 'projected': stock.isUsingProjectedData }]">
             <div class="val-header">
-              <span class="val-title">
-                估值2
-                <span v-if="stock.isUsingProjectedData" class="projected-badge">预测</span>
-              </span>
+              <span class="val-title">估值2 <span v-if="stock.isUsingProjectedData" class="projected-badge">预测</span></span>
               <span class="val-formula" v-if="stock.currentRatio !== null && stock.currentRatio < 1.5">
-                市值 / 净利润 (PE)
-                <span class="method-note">(流动比率 &lt; 1.5)</span>
+                PE = 市值 / 净利润 <span class="method-note">(流动比率 &lt; 1.5)</span>
               </span>
               <span class="val-formula" v-else>
-                (市值 - 净现金) / 净利润
-                <span class="method-note">(流动比率 ≥ 1.5)</span>
+                (市值 - 净现金) / 净利润 <span class="method-note">(流动比率 ≥ 1.5)</span>
               </span>
             </div>
-            <div class="val-result" :class="getValuationClass(stock.currentRatio !== null && stock.currentRatio < 1.5 ? stock.peRatio : stock.valuation2)">
+            <div class="val-result font-mono-nums" :class="getValuationClass(getVal2())">
               <template v-if="stock.currentRatio !== null && stock.currentRatio < 1.5">
-                <template v-if="stock.peRatio !== null">
-                  {{ stock.peRatio.toFixed(2) }}
-                </template>
-                <template v-else>
-                  <span class="na-value">N/A</span>
-                </template>
+                <template v-if="stock.peRatio !== null">{{ stock.peRatio.toFixed(2) }}</template>
+                <template v-else><span class="na-text">N/A</span></template>
               </template>
-              <template v-else>
-                {{ stock.valuation2.toFixed(2) }}
-              </template>
+              <template v-else>{{ stock.valuation2.toFixed(2) }}</template>
             </div>
           </div>
         </div>
@@ -175,10 +153,10 @@
             流动比率 &lt; 1.5：使用 市值 为基础计算，反映整体企业价值
           </span>
         </div>
-      </div>
+      </section>
 
       <!-- Charts -->
-      <div class="charts-section">
+      <div class="charts-grid">
         <ValuationChart
           title="自由现金流趋势"
           :yearly-data="stock.yearlyData"
@@ -197,11 +175,11 @@
         />
       </div>
 
-      <!-- Historical Data Table -->
-      <div class="table-section">
+      <!-- Historical Data -->
+      <section class="section-card">
         <div class="table-header">
-          <h2>历史数据</h2>
-          <button @click="toggleSortOrder" class="sort-button">
+          <h2 class="section-title">历史数据</h2>
+          <button @click="toggleSortOrder" class="sort-btn">
             {{ sortOrder === 'asc' ? '从早到晚' : '从晚到早' }}
           </button>
         </div>
@@ -216,22 +194,22 @@
             </thead>
             <tbody>
               <tr v-for="data in sortedYearlyData" :key="data.year">
-                <td>{{ data.year }}</td>
-                <td :class="{ 'positive': data.freeCashFlow > 0, 'negative': data.freeCashFlow < 0 }">
+                <td class="font-mono-nums">{{ data.year }}</td>
+                <td class="font-mono-nums" :class="{ 'text-positive': data.freeCashFlow > 0, 'text-negative': data.freeCashFlow < 0 }">
                   {{ convertAndFormat(data.freeCashFlow) }}
                 </td>
-                <td :class="{ 'positive': data.netProfit > 0, 'negative': data.netProfit < 0 }">
+                <td class="font-mono-nums" :class="{ 'text-positive': data.netProfit > 0, 'text-negative': data.netProfit < 0 }">
                   {{ convertAndFormat(data.netProfit) }}
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
 
       <!-- Actions -->
       <div class="actions-section">
-        <button @click="deleteStock" :disabled="deleting" class="delete-button">
+        <button @click="deleteStock" :disabled="deleting" class="delete-btn">
           {{ deleting ? '删除中...' : '删除此股票' }}
         </button>
       </div>
@@ -244,7 +222,7 @@
 
     <div v-else class="error-state">
       <p>未找到股票数据</p>
-      <button @click="goBack" class="back-btn">返回首页</button>
+      <button @click="goBack" class="back-link">返回首页</button>
     </div>
   </div>
 </template>
@@ -256,8 +234,8 @@ import { useStockStore } from '@/stores/stockStore'
 import { fetchExchangeRates } from '@/api/exchangeRate'
 import type { StockData } from '@/types/stock'
 import ValuationChart from '@/components/ValuationChart.vue'
-
 import { logger } from '@/utils/logger'
+import { getValuationLevel } from '@/utils/formatters'
 
 type CurrencyType = 'HKD' | 'CNY' | 'USD' | 'OTHER'
 
@@ -272,14 +250,14 @@ const displayCurrency = ref<CurrencyType>('HKD')
 const exchangeRates = ref<Record<string, number>>({ HKD: 1, USD: 7.75, CNY: 1.10 })
 const sortOrder = ref<'asc' | 'desc'>('desc')
 
-const isThisStockUpdating = computed(() => {
-  return stock.value ? stockStore.currentlyUpdatingIds.has(stock.value.id) : false
-})
+const isThisStockUpdating = computed(() =>
+  stock.value ? stockStore.currentlyUpdatingIds.has(stock.value.id) : false
+)
 
 const sortedYearlyData = computed(() => {
   if (!stock.value) return []
   const data = [...stock.value.yearlyData]
-  return sortOrder.value === 'asc' 
+  return sortOrder.value === 'asc'
     ? data.sort((a, b) => a.year - b.year)
     : data.sort((a, b) => b.year - a.year)
 })
@@ -330,21 +308,60 @@ function convertAndFormat(value: number): string {
   return `${converted.toFixed(2)}${unitNames[displayCurrency.value] || unitNames.OTHER}`
 }
 
+function getVal1(): number | null {
+  if (!stock.value) return null
+  const s = stock.value
+  if (s.currentRatio !== null && s.currentRatio < 1.5) {
+    if (s.freeCashFlow <= 0) return null
+    return s.marketCap / s.freeCashFlow
+  }
+  return s.valuation1
+}
+
+function getVal2(): number | null {
+  if (!stock.value) return null
+  const s = stock.value
+  if (s.currentRatio !== null && s.currentRatio < 1.5) {
+    return s.peRatio
+  }
+  return s.valuation2
+}
+
 function getValuationClass(value: number | null): string {
-  if (value === null) return 'na'
-  if (value < 0) return 'negative'
-  if (value < 10) return 'low'
-  if (value < 20) return 'medium'
-  return 'high'
+  if (value === null) return 'val-na'
+  if (value < 0) return 'val-negative'
+  if (value < 10) return 'val-low'
+  if (value < 20) return 'val-medium'
+  return 'val-high'
+}
+
+function getValuationBgClass(value: number | null): string {
+  const level = getValuationLevel(value)
+  const bgClassMap: Record<string, string> = {
+    low: 'val-low-bg',
+    medium: 'val-medium-bg',
+    high: 'val-high-bg',
+    negative: 'val-negative-bg',
+    na: 'val-na-bg',
+  }
+  return bgClassMap[level] ?? ''
+}
+
+function getPeClass(value: number | null): string {
+  if (value === null) return 'metric-na'
+  if (value < 12) return 'metric-low'
+  if (value < 20) return 'metric-medium'
+  return 'metric-high'
+}
+
+function getCurrentRatioClass(value: number | null): string {
+  if (value === null) return 'metric-na'
+  return value >= 1.5 ? 'metric-low' : 'metric-medium'
 }
 
 async function deleteStock() {
   if (!stock.value) return
-  
-  if (!confirm('确定要删除这只股票吗？此操作不可撤销。')) {
-    return
-  }
-  
+  if (!confirm('确定要删除这只股票吗？此操作不可撤销。')) return
   deleting.value = true
   try {
     await stockStore.deleteStock(stock.value.id)
@@ -356,588 +373,214 @@ async function deleteStock() {
 
 async function handleUpdateFinancialData() {
   if (!stock.value || isThisStockUpdating.value) return
-
   try {
     const updatedStock = await stockStore.updateStockWithRecalculation(stock.value.id)
-    if (updatedStock) {
-      stock.value = updatedStock
-    }
+    if (updatedStock) stock.value = updatedStock
   } catch (e) {
     logger.error('StockDetailView', 'Failed to update financial data:', e)
     alert('更新失败，请重试')
   }
 }
 
-function goBack() {
-  router.push('/')
-}
+function goBack() { router.push('/') }
 </script>
 
 <style scoped>
-.stock-detail-view {
-  min-height: 100vh;
-  background: var(--bg-primary);
-  position: relative;
-}
+.detail-view { min-height: 100vh; background-color: var(--bg-primary); position: relative; }
 
-.updating-full-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  color: white;
-  gap: 12px;
+/* Updating overlay */
+.updating-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background-color: var(--bg-overlay); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; z-index: 9999; color: white; gap: 12px;
 }
-
-.updating-full-overlay .spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(255, 255, 255, 0.2);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+.spinner-sm {
+  width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite;
 }
+.update-hint { font-size: 14px; color: rgba(255,255,255,0.6); }
 
-.updating-full-overlay p {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 500;
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Sub-header */
+.sub-header {
+  background-color: var(--header-bg); border-bottom: 1px solid var(--header-border);
+  box-shadow: var(--header-shadow); position: sticky; top: 0; z-index: 100;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
 }
-
-.updating-full-overlay .update-hint {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
+.sub-header-inner {
+  max-width: 1400px; margin: 0 auto; padding: 0 24px;
+  display: flex; align-items: center; height: 52px; gap: 16px;
 }
-
-.page-header {
-  background: var(--card-bg);
-  border-bottom: 1px solid var(--border-color);
-  padding: 0 24px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.header-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  height: 64px;
-  gap: 16px;
-}
-
 .back-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 14px;
-  cursor: pointer;
-  transition: color 0.2s;
-  padding: 0;
+  display: flex; align-items: center; gap: 6px; background: none; border: none;
+  color: var(--text-secondary); font-size: 14px; cursor: pointer;
+  transition: color var(--transition-fast); padding: 0; font-family: var(--font-sans);
+}
+.back-button:hover { color: var(--text-primary); }
+.page-title { margin: 0; font-size: 16px; font-weight: 600; color: var(--text-primary); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.page-code { font-size: 13px; color: var(--text-muted); font-weight: 400; }
+.sub-header-actions { display: flex; gap: 8px; }
+
+.action-btn {
+  display: flex; align-items: center; gap: 6px; padding: 6px 14px;
+  font-size: 13px; font-weight: 500; border-radius: var(--radius-md, 6px);
+  cursor: pointer; transition: all var(--transition-fast); font-family: var(--font-sans);
+}
+.update-btn {
+  background-color: var(--brand-primary); color: white; border: none;
+}
+.update-btn:hover:not(:disabled) { background-color: var(--brand-primary-hover); }
+.update-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Main content */
+.detail-content {
+  max-width: 1400px; margin: 0 auto; padding: 24px 24px 48px;
+  display: flex; flex-direction: column; gap: 24px;
 }
 
-.back-button:hover {
-  color: var(--text-primary);
-}
-
-.header-content h1 {
-  margin: 0;
-  font-size: 18px;
-  color: var(--text-primary);
-  flex-shrink: 0;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.update-button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.update-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-}
-
-.update-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.spinner-small {
-  width: 12px;
-  height: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-.main-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 32px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-}
-
+/* Currency bar */
 .currency-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+  background-color: var(--bg-card); border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg, 8px);
 }
-
-.currency-bar label {
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
+.currency-bar label { font-size: 14px; color: var(--text-secondary); }
 .currency-select {
-  padding: 6px 12px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  font-size: 14px;
-  color: var(--text-primary);
-  cursor: pointer;
+  padding: 6px 12px; background-color: var(--bg-input); border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md, 6px); font-size: 14px; color: var(--text-primary); cursor: pointer;
+  font-family: var(--font-sans);
 }
+.currency-select:focus { outline: none; border-color: var(--brand-primary); }
 
-.currency-select:focus {
-  outline: none;
-  border-color: var(--primary-color);
+/* Overview grid */
+.overview-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px;
 }
-
-.overview-section {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
-
 .overview-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  background-color: var(--bg-card); border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl, 12px); padding: 16px; display: flex; flex-direction: column; gap: 6px;
+  transition: border-color var(--transition-base);
 }
-
-.overview-card .label {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.overview-card .value {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--text-primary);
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.overview-card.projected {
-  border-color: rgba(139, 92, 246, 0.4);
-  background: rgba(139, 92, 246, 0.05);
-}
-
-.overview-card.projected .value {
-  color: #a78bfa;
-}
-
-.currency-info {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.rate-warning {
-  color: var(--warning-color);
-  font-weight: bold;
-  cursor: help;
-}
-
-.valuation-section {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 24px;
-}
-
-.valuation-section h2 {
-  margin: 0 0 20px 0;
-  font-size: 18px;
-  color: var(--text-primary);
-}
-
-.valuation-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
-}
-
-.valuation-box {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 20px;
-}
-
-.valuation-box.projected {
-  border-color: rgba(139, 92, 246, 0.5);
-  background: rgba(139, 92, 246, 0.08);
-}
-
-.val-header {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 16px;
-}
-
-.val-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.val-formula {
-  font-size: 12px;
-  color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.method-note {
-  color: var(--primary-color);
-  font-size: 11px;
-  margin-left: 4px;
-}
-
-.valuation-note {
-  margin-top: 12px;
-  padding: 12px;
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.note-icon {
-  color: var(--primary-color);
-  font-size: 14px;
-}
-
-.note-text {
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.6;
-}
-
-.val-result {
-  font-size: 42px;
-  font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.val-result.low {
-  color: var(--success-color);
-}
-
-.val-result.medium {
-  color: var(--primary-color);
-}
-
-.val-result.high {
-  color: var(--danger-color);
-}
-
-.val-result.negative {
-  color: #ef4444;
-}
-
-.val-result.na {
-  color: var(--text-muted);
-}
-
-.na-value {
-  color: var(--text-muted);
-}
-
-.tooltip-trigger {
-  margin-left: 6px;
-  font-size: 14px;
-  color: var(--text-secondary);
-  cursor: help;
-  position: relative;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.tooltip-text {
-  display: none;
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: normal;
-  white-space: nowrap;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  border: 1px solid var(--border-color);
-  z-index: 100;
-}
-
-.tooltip-trigger:hover .tooltip-text,
-.tooltip-trigger:active .tooltip-text {
-  display: block;
-}
+.overview-card.projected { border-color: var(--projected-border); background-color: var(--projected-bg); }
+.card-label { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
+.card-value { font-size: 22px; font-weight: 700; color: var(--text-primary); }
+.na-text { color: var(--text-muted); }
 
 .projected-badge {
-  display: inline-block;
-  margin-left: 8px;
-  padding: 2px 8px;
-  font-size: 10px;
-  font-weight: 600;
-  color: #a78bfa;
-  background: rgba(139, 92, 246, 0.15);
-  border: 1px solid rgba(139, 92, 246, 0.3);
-  border-radius: 4px;
-  vertical-align: middle;
+  display: inline-flex; padding: 1px 6px; font-size: 10px; font-weight: 600;
+  color: var(--projected-color); background-color: var(--projected-bg);
+  border: 1px solid var(--projected-border); border-radius: var(--radius-sm, 4px); margin-left: 4px;
 }
 
-.charts-section {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 24px;
+.info-trigger { position: relative; cursor: help; font-size: 12px; color: var(--text-muted); -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.info-text {
+  display: none; position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  background-color: var(--bg-card); color: var(--text-primary); padding: 6px 10px;
+  border-radius: var(--radius-md, 6px); font-size: 12px; font-weight: normal; white-space: nowrap;
+  box-shadow: var(--shadow-lg); border: 1px solid var(--border-secondary); z-index: 100;
 }
+.info-trigger:hover .info-text, .info-trigger:active .info-text { display: block; }
 
-.table-section {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 24px;
+.text-positive { color: var(--val-low) !important; }
+.text-negative { color: var(--val-negative) !important; }
+.metric-low { color: var(--val-low) !important; }
+.metric-medium { color: var(--val-medium) !important; }
+.metric-high { color: var(--val-high) !important; }
+.metric-na { color: var(--text-muted) !important; }
+
+/* Valuation */
+.val-low { color: var(--val-low) !important; }
+.val-medium { color: var(--val-medium) !important; }
+.val-high { color: var(--val-high) !important; }
+.val-negative { color: var(--val-negative) !important; }
+.val-na { color: var(--val-na) !important; }
+
+/* Valuation background classes */
+.valuation-box.val-low-bg { background-color: var(--val-low-bg) !important; }
+.valuation-box.val-medium-bg { background-color: var(--val-medium-bg) !important; }
+.valuation-box.val-high-bg { background-color: var(--val-high-bg) !important; }
+.valuation-box.val-negative-bg { background-color: var(--val-negative-bg) !important; }
+.valuation-box.val-na-bg { background-color: var(--val-na-bg) !important; }
+
+.section-card {
+  background-color: var(--bg-card); border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl, 12px); padding: 24px;
 }
+.section-title { margin: 0 0 20px 0; font-size: 17px; font-weight: 600; color: var(--text-primary); }
 
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+.valuation-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.valuation-box {
+  background-color: var(--bg-secondary); border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg, 10px); padding: 20px;
 }
+.valuation-box.projected { border-color: var(--projected-border); background-color: var(--projected-bg); }
+.val-header { display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px; }
+.val-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.val-formula { font-size: 12px; color: var(--text-muted); }
+.method-note { color: var(--brand-primary); font-size: 11px; margin-left: 4px; }
+.val-result { font-size: 36px; font-weight: 700; }
 
-.table-header h2 {
-  margin: 0;
-  font-size: 18px;
-  color: var(--text-primary);
+.valuation-note {
+  margin-top: 12px; padding: 12px; background-color: var(--bg-secondary);
+  border-radius: var(--radius-lg, 8px); display: flex; align-items: flex-start; gap: 8px;
 }
+.note-icon { color: var(--brand-primary); font-size: 14px; }
+.note-text { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
 
-.sort-button {
-  padding: 6px 12px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s;
+/* Charts */
+.charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; }
+
+/* Table */
+.table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.sort-btn {
+  padding: 6px 12px; background-color: var(--bg-secondary); border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md, 6px); font-size: 13px; color: var(--text-secondary);
+  cursor: pointer; transition: all var(--transition-fast); font-family: var(--font-sans);
 }
+.sort-btn:hover { background-color: var(--brand-primary); color: white; border-color: var(--brand-primary); }
 
-.sort-button:hover {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
+.data-table-wrapper { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th, .data-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border-primary); }
+.data-table th { font-weight: 600; color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+.data-table td { color: var(--text-primary); }
+.data-table tr:hover td { background-color: var(--bg-card-hover); }
+
+/* Delete */
+.actions-section { display: flex; justify-content: center; padding-top: 16px; border-top: 1px solid var(--border-primary); }
+.delete-btn {
+  padding: 10px 24px; background: transparent; color: var(--color-danger-text);
+  border: 1px solid var(--color-danger); border-radius: var(--radius-lg, 8px);
+  font-size: 14px; cursor: pointer; transition: all var(--transition-fast); font-family: var(--font-sans);
 }
+.delete-btn:hover:not(:disabled) { background-color: var(--color-danger); color: white; }
+.delete-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.data-table-wrapper {
-  overflow-x: auto;
+/* Loading / Error */
+.loading-state, .error-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 100px 20px;
 }
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.data-table th,
-.data-table td {
-  padding: 12px 16px;
-  text-align: left;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.data-table th {
-  font-weight: 600;
-  color: var(--text-secondary);
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.data-table td {
-  color: var(--text-primary);
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.data-table tr:hover {
-  background: var(--bg-secondary);
-}
-
-.positive {
-  color: var(--success-color);
-}
-
-.negative {
-  color: var(--danger-color);
-}
-
-.actions-section {
-  display: flex;
-  justify-content: center;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-color);
-}
-
-.delete-button {
-  padding: 12px 24px;
-  background: transparent;
-  color: var(--danger-color);
-  border: 1px solid var(--danger-color);
-  border-radius: 8px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.delete-button:hover:not(:disabled) {
-  background: var(--danger-color);
-  color: white;
-}
-
-.delete-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.loading-state,
-.error-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 100px 20px;
-}
-
 .spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--border-color);
-  border-top-color: var(--primary-color);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 16px;
+  width: 32px; height: 32px; border: 3px solid var(--border-secondary);
+  border-top-color: var(--brand-primary); border-radius: 50%;
+  animation: spin 0.8s linear infinite; margin-bottom: 16px;
 }
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.error-state p {
-  color: var(--text-secondary);
-  margin-bottom: 16px;
-}
-
-.back-btn {
-  padding: 10px 20px;
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
+.error-state p { color: var(--text-secondary); margin-bottom: 16px; }
+.back-link {
+  padding: 10px 20px; background-color: var(--brand-primary); color: white;
+  border: none; border-radius: var(--radius-md, 6px); cursor: pointer; font-family: var(--font-sans);
 }
 
 @media (max-width: 768px) {
-  .page-header {
-    padding: 0 12px;
-  }
-
-  .header-content {
-    height: 52px;
-    gap: 8px;
-  }
-
-  .header-content h1 {
-    font-size: 14px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .back-button {
-    font-size: 13px;
-    padding: 0;
-  }
-
-  .header-actions {
-    gap: 8px;
-  }
-
-  .update-button {
-    padding: 6px 10px;
-    font-size: 12px;
-    white-space: nowrap;
-  }
-
-  .main-content {
-    padding: 20px 16px;
-  }
-
-  .overview-section {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .valuation-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .charts-section {
-    grid-template-columns: 1fr;
-  }
-
-  .val-result {
-    font-size: 32px;
-  }
+  .sub-header-inner { padding: 0 16px; height: 48px; }
+  .page-title { font-size: 14px; }
+  .update-btn .update-btn-text { display: none; }
+  .detail-content { padding: 16px 16px 32px; gap: 16px; }
+  .overview-grid { grid-template-columns: repeat(2, 1fr); }
+  .valuation-grid { grid-template-columns: 1fr; }
+  .charts-grid { grid-template-columns: 1fr; }
+  .val-result { font-size: 28px; }
 }
 </style>

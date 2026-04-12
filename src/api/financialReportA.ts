@@ -30,6 +30,8 @@ import {
   type TTMData,
 } from '@/utils/calculator'
 
+declare const __DEV__: boolean
+
 const BASE_URL = 'https://datacenter.eastmoney.com/securities/api/data/get'
 
 interface ApiResponse<T> {

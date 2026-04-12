@@ -1,104 +1,128 @@
 <template>
-  <div class="stock-card" :class="{ 'is-updating': isUpdating }">
+  <div
+    class="stock-card"
+    :class="{ 'is-updating': isUpdating }"
+    @click="handleClick($event)"
+  >
     <div v-if="isUpdating" class="updating-overlay">
-      <div class="spinner-small"></div>
+      <div class="spinner-sm"></div>
       <span>更新中...</span>
     </div>
+
+    <!-- Row 1: Name + Code + Market -->
     <div class="card-header">
       <div class="stock-info">
-        <h3 class="stock-name">{{ stock.name }}</h3>
-        <span class="stock-code">{{ stock.code }}</span>
-        <span class="market-badge" :class="stock.market">{{ stock.market }}</span>
+        <span class="stock-name">{{ stock.name }}</span>
+        <span class="stock-code font-mono-nums">{{ stock.code }}</span>
       </div>
-    </div>
-    
-    <div class="card-body" @click="handleClick($event)">
-      <div class="market-cap">
-        市值: {{ formatCurrency(stock.marketCap) }}
-        <span class="base-currency">({{ stock.market === 'A' ? '亿人民币' : '亿港元' }})</span>
-        <span v-if="stock.rateSource === 'fallback'" class="rate-warning">*</span>
-      </div>
-
-      <div class="valuation-row">
-        <div class="valuation-item">
-          <span class="label">估值1</span>
-          <span class="value" :class="getValuationClass(getCardValuation1())">
-            <template v-if="getCardValuation1() !== null">
-              {{ getCardValuation1()!.toFixed(2) }}
-            </template>
-            <template v-else>
-              <span class="na-value">N/A</span>
-              <span class="tooltip-trigger" @click.stop>
-                ⓘ
-                <span class="tooltip-text">自由现金流为负时不计算估值</span>
-              </span>
-            </template>
-          </span>
-          <span class="formula-hint">{{ getValuation1Formula() }}</span>
-        </div>
-        <div class="valuation-item">
-          <span class="label">估值2</span>
-          <span class="value" :class="getValuationClass(getCardValuation2())">
-            <template v-if="getCardValuation2() !== null">
-              {{ getCardValuation2()!.toFixed(2) }}
-            </template>
-            <template v-else>
-              <span class="na-value">N/A</span>
-            </template>
-          </span>
-          <span class="formula-hint">{{ getValuation2Formula() }}</span>
-        </div>
-      </div>
-
-      <div class="metric-row">
-        <div class="metric-item" v-if="stock.currentRatio === null || stock.currentRatio >= 1.5">
-          <span class="label">
-            PE
-            <span class="tooltip-trigger">
-              ⓘ
-              <span class="tooltip-text">PE = 市值 / 净利润</span>
-            </span>
-          </span>
-          <span class="value" :class="getMetricClass('pe', stock.peRatio)">
-            <template v-if="stock.peRatio !== null">
-              {{ stock.peRatio.toFixed(1) }}x
-            </template>
-            <template v-else>
-              <span class="na-value">N/A</span>
-            </template>
-          </span>
-        </div>
-        <div class="metric-item">
-          <span class="label">
-            流动比率
-            <span class="tooltip-trigger">
-              ⓘ
-              <span class="tooltip-text">流动比率 = 流动资产 / 流动负债</span>
-            </span>
-          </span>
-          <span class="value" :class="getMetricClass('currentRatio', stock.currentRatio)">
-            <template v-if="stock.currentRatio !== null">
-              {{ stock.currentRatio.toFixed(2) }}
-            </template>
-            <template v-else>
-              <span class="na-value">N/A</span>
-            </template>
-          </span>
-        </div>
-      </div>
-    </div>
-    
-    <div class="card-footer">
-      <span class="update-time">
-        更新于: {{ formatDate(stock.updatedAt) }}
+      <span class="market-badge" :class="stock.market === 'HK' ? 'badge-hk' : 'badge-a'">
+        {{ stock.market === 'HK' ? '港股' : 'A股' }}
       </span>
+    </div>
+
+    <!-- Row 2: Market Cap -->
+    <div class="metric-row market-cap-row">
+      <span class="metric-label">市值</span>
+      <span class="metric-value font-mono-nums">{{ formatMarketCap(stock) }}</span>
+      <span v-if="stock.rateSource === 'fallback'" class="rate-warning" title="汇率使用了备用值">*</span>
+    </div>
+
+    <!-- Row 3: Valuations side by side -->
+    <div class="valuation-row">
+      <div class="valuation-item" :class="getValuationBgClass(getCardValuation1())">
+        <div class="valuation-label">
+          <span>估值1</span>
+          <span
+            class="info-icon"
+            @click.stop
+            @mouseenter="showTooltip1 = true"
+            @mouseleave="showTooltip1 = false"
+          >ⓘ
+            <span v-if="showTooltip1" class="tooltip-popup">{{ getValuation1Tooltip() }}</span>
+          </span>
+        </div>
+        <div class="valuation-value font-mono-nums" :class="getValuationClass(getCardValuation1())">
+          <template v-if="getCardValuation1() !== null">
+            {{ getCardValuation1()!.toFixed(2) }}
+          </template>
+          <template v-else>
+            <span class="na-text">N/A</span>
+          </template>
+        </div>
+      </div>
+      <div class="valuation-item" :class="getValuationBgClass(getCardValuation2())">
+        <div class="valuation-label">
+          <span>估值2</span>
+          <span
+            class="info-icon"
+            @click.stop
+            @mouseenter="showTooltip2 = true"
+            @mouseleave="showTooltip2 = false"
+          >ⓘ
+            <span v-if="showTooltip2" class="tooltip-popup">{{ getValuation2Tooltip() }}</span>
+          </span>
+        </div>
+        <div class="valuation-value font-mono-nums" :class="getValuationClass(getCardValuation2())">
+          <template v-if="getCardValuation2() !== null">
+            {{ getCardValuation2()!.toFixed(2) }}
+          </template>
+          <template v-else>
+            <span class="na-text">N/A</span>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 4: Key metrics -->
+    <div class="metrics-grid">
+      <div class="metric-item">
+        <span class="metric-label">PE</span>
+        <span class="metric-value font-mono-nums" :class="getMetricClass('pe', stock.peRatio)">
+          <template v-if="stock.peRatio !== null">{{ stock.peRatio.toFixed(1) }}x</template>
+          <template v-else><span class="na-text">N/A</span></template>
+        </span>
+      </div>
+      <div class="metric-item">
+        <span class="metric-label">流动比率</span>
+        <span class="metric-value font-mono-nums" :class="getMetricClass('currentRatio', stock.currentRatio)">
+          <template v-if="stock.currentRatio !== null">{{ stock.currentRatio.toFixed(2) }}</template>
+          <template v-else><span class="na-text">N/A</span></template>
+        </span>
+      </div>
+      <div class="metric-item">
+        <span class="metric-label">净现金</span>
+        <span class="metric-value font-mono-nums">
+          {{ formatYi(stock.netCash) }}
+        </span>
+      </div>
+      <div class="metric-item">
+        <span class="metric-label">FCF</span>
+        <span class="metric-value font-mono-nums" :class="{ 'text-positive': stock.freeCashFlow > 0, 'text-negative': stock.freeCashFlow < 0 }">
+          {{ formatYi(stock.freeCashFlow) }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Row 5: Footer -->
+    <div class="card-footer">
+      <span class="update-time">{{ formatDate(stock.updatedAt) }}</span>
       <span class="arrow">→</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import type { StockData } from '@/types/stock'
+import { formatCurrency, formatYi, formatDate, getValuationClass, getValuationLevel } from '@/utils/formatters'
+
+const showTooltip1 = ref(false)
+const showTooltip2 = ref(false)
+
+function formatMarketCap(stock: StockData): string {
+  // formatCurrency already includes the unit (亿港元/亿人民币), so no need to add it again
+  return formatCurrency(stock.marketCap, stock.market === 'A' ? 'CNY' : 'HKD')
+}
 
 const props = defineProps<{
   stock: StockData
@@ -111,25 +135,8 @@ const emit = defineEmits<{
 
 function handleClick(event: MouseEvent) {
   const target = event.target as HTMLElement
-  if (target.closest('.tooltip-trigger')) return
+  if (target.closest('.info-icon') || target.closest('.tooltip-popup')) return
   emit('click', props.stock)
-}
-
-function formatCurrency(value: number): string {
-  if (value >= 10000) {
-    return `${(value / 10000).toFixed(2)}万亿`
-  }
-  return `${value.toFixed(2)}亿`
-}
-
-function formatDate(timestamp: number): string {
-  const date = new Date(timestamp)
-  return date.toLocaleDateString('zh-CN', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
 }
 
 function getCardValuation1(): number | null {
@@ -149,52 +156,65 @@ function getCardValuation2(): number | null {
   return stock.valuation2
 }
 
-function getValuationClass(value: number | null): string {
-  if (value === null) return 'na'
-  if (value < 0) return 'negative'
-  if (value < 12) return 'low'
-  if (value < 20) return 'medium'
-  return 'high'
-}
-
 function getMetricClass(type: 'pe' | 'currentRatio', value: number | null): string {
-  if (value === null) return 'na'
+  if (value === null) return 'metric-na'
   if (type === 'pe') {
-    if (value < 12) return 'low'
-    if (value < 20) return 'medium'
-    return 'high'
+    if (value < 12) return 'metric-low'
+    if (value < 20) return 'metric-medium'
+    return 'metric-high'
   }
-  if (type === 'currentRatio') {
-    return value >= 1.5 ? 'low' : 'medium'
-  }
-  return 'na'
+  return value >= 1.5 ? 'metric-low' : 'metric-medium'
 }
 
-function getValuation1Formula(): string {
-  if (props.stock.currentRatio !== null && props.stock.currentRatio < 1.5) {
-    return '市值/自由现金流'
+function getValuationBgClass(value: number | null): string {
+  const level = getValuationLevel(value)
+  const bgClassMap: Record<string, string> = {
+    low: 'val-low-bg',
+    medium: 'val-medium-bg',
+    high: 'val-high-bg',
+    negative: 'val-negative-bg',
+    na: 'val-na-bg',
   }
-  return '(市值-净现金)/自由现金流'
+  return bgClassMap[level] ?? ''
 }
 
-function getValuation2Formula(): string {
-  if (props.stock.currentRatio !== null && props.stock.currentRatio < 1.5) {
-    return '市值/净利润 (PE)'
+function getValuation1Tooltip(): string {
+  const stock = props.stock
+  const formula = stock.currentRatio !== null && stock.currentRatio < 1.5
+    ? '市值/FCF'
+    : '(市值-净现金)/FCF'
+  if (stock.currentRatio !== null && stock.currentRatio < 1.5) {
+    return `${formula} = ${formatCurrency(stock.marketCap, stock.market === 'A' ? 'CNY' : 'HKD')} / ${formatYi(stock.freeCashFlow)} (流动比率<1.5)`
   }
-  return '(市值-净现金)/净利润'
+  return `${formula} = (${formatCurrency(stock.marketCap, stock.market === 'A' ? 'CNY' : 'HKD')} - ${formatYi(stock.netCash)}) / ${formatYi(stock.freeCashFlow)}`
+}
+
+function getValuation2Tooltip(): string {
+  const stock = props.stock
+  const formula = stock.currentRatio !== null && stock.currentRatio < 1.5
+    ? 'PE'
+    : '(市值-净现金)/净利润'
+  if (stock.currentRatio !== null && stock.currentRatio < 1.5) {
+    return `${formula} (流动比率<1.5，使用PE)`
+  }
+  return `${formula} = (${formatCurrency(stock.marketCap, stock.market === 'A' ? 'CNY' : 'HKD')} - ${formatYi(stock.netCash)}) / ${formatYi(stock.netProfit)}`
 }
 </script>
 
 <style scoped>
 .stock-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+  position: relative;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl, 12px);
   padding: 20px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
-  overflow: visible;
+  transition: border-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-fast);
+}
+
+.stock-card:hover {
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-md);
 }
 
 .stock-card.is-updating {
@@ -204,38 +224,34 @@ function getValuation2Formula(): string {
 
 .updating-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: var(--bg-overlay);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8px;
   z-index: 10;
-  border-radius: 12px;
+  border-radius: var(--radius-xl, 12px);
   color: white;
   font-size: 14px;
   font-weight: 500;
 }
 
-.updating-overlay .spinner-small {
+.spinner-sm {
   width: 20px;
   height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(255,255,255,0.3);
   border-top-color: white;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 
-.stock-card:hover {
-  border-color: var(--primary-color);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.1);
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
+/* Header */
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -246,55 +262,70 @@ function getValuation2Formula(): string {
 .stock-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  min-width: 0;
 }
 
 .stock-name {
-  margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stock-code {
-  font-size: 14px;
-  color: var(--text-secondary);
-  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 .market-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-sm, 4px);
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+/* Market Cap */
+.market-cap-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.metric-label {
   font-size: 12px;
-  border-radius: 4px;
-  font-weight: 500;
-  width: fit-content;
+  color: var(--text-muted);
 }
 
-.market-badge.HK {
-  background: rgba(59, 130, 246, 0.2);
-  color: #60a5fa;
+.metric-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
-.market-badge.A {
-  background: rgba(16, 185, 129, 0.2);
-  color: #34d399;
+.rate-warning {
+  color: var(--color-warning);
+  font-weight: bold;
+  cursor: help;
+  font-size: 12px;
 }
 
-.market-cap {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-bottom: 16px;
-}
-
-.card-body {
-  margin-bottom: 16px;
-}
-
+/* Valuations */
 .valuation-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .valuation-item {
@@ -303,162 +334,196 @@ function getValuation2Formula(): string {
   gap: 4px;
 }
 
-.label {
-  font-size: 13px;
+.valuation-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
-.value {
-  font-size: 24px;
+.valuation-value {
+  font-size: 26px;
   font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
+  line-height: 1.2;
 }
 
-.value.low {
-  color: var(--success-color);
+.valuation-value.val-low { color: var(--val-low); }
+.valuation-value.val-medium { color: var(--val-medium); }
+.valuation-value.val-high { color: var(--val-high); }
+.valuation-value.val-negative { color: var(--val-negative); }
+.valuation-value.val-na { color: var(--val-na); }
+
+/* Valuation background classes */
+.valuation-item.val-low-bg {
+  background-color: var(--val-low-bg);
+  border-radius: var(--radius-md, 6px);
+  padding: 8px 10px;
+}
+.valuation-item.val-medium-bg {
+  background-color: var(--val-medium-bg);
+  border-radius: var(--radius-md, 6px);
+  padding: 8px 10px;
+}
+.valuation-item.val-high-bg {
+  background-color: var(--val-high-bg);
+  border-radius: var(--radius-md, 6px);
+  padding: 8px 10px;
+}
+.valuation-item.val-negative-bg {
+  background-color: var(--val-negative-bg);
+  border-radius: var(--radius-md, 6px);
+  padding: 8px 10px;
+}
+.valuation-item.val-na-bg {
+  background-color: var(--val-na-bg);
+  border-radius: var(--radius-md, 6px);
+  padding: 8px 10px;
 }
 
-.value.medium {
-  color: var(--primary-color);
-}
-
-.value.high {
-  color: var(--danger-color);
-}
-
-.value.negative {
-  color: #ef4444;
-}
-
-.formula-hint {
+/* Info icon & tooltip */
+.info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
   font-size: 11px;
+  font-weight: 600;
+  font-style: normal;
   color: var(--text-muted);
+  background-color: var(--bg-tertiary);
+  border-radius: 50%;
+  cursor: help;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  flex-shrink: 0;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  line-height: 1;
 }
 
-.metric-row {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-color);
-  gap: 16px;
+.info-icon:hover {
+  background-color: var(--brand-primary-light);
+  color: var(--brand-primary);
+}
+
+.tooltip-popup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: var(--radius-md, 6px);
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-secondary);
+  z-index: 100;
+  pointer-events: none;
+  line-height: 1.5;
+}
+
+.tooltip-popup::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--border-secondary);
+}
+
+.na-text {
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+/* Metrics Grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
 .metric-item {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  flex: 1;
 }
 
-.metric-item .label {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.metric-item .value {
-  font-size: 18px;
-  font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.na-value {
+.metric-item .metric-label {
+  font-size: 11px;
   color: var(--text-muted);
 }
 
-.na-value {
-  color: var(--text-muted);
+.metric-item .metric-value {
+  font-size: 14px;
+  font-weight: 600;
 }
 
-.value.na {
-  color: var(--text-muted);
-}
+.metric-low { color: var(--val-low) !important; }
+.metric-medium { color: var(--val-medium) !important; }
+.metric-high { color: var(--val-high) !important; }
+.metric-na { color: var(--text-muted) !important; }
 
-.tooltip-trigger {
-  font-size: 12px;
-  color: var(--text-secondary);
-  cursor: help;
-  position: relative;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
+.text-positive { color: var(--val-low); }
+.text-negative { color: var(--val-negative); }
 
-.tooltip-text {
-  display: none;
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: normal;
-  white-space: nowrap;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  border: 1px solid var(--border-color);
-  z-index: 100;
-}
-
-.tooltip-trigger:hover .tooltip-text,
-.tooltip-trigger:active .tooltip-text {
-  display: block;
-}
-
+/* Footer */
 .card-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-top: 14px;
   padding-top: 12px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-primary);
 }
 
 .update-time {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
 .arrow {
-  font-size: 18px;
-  color: var(--primary-color);
+  font-size: 16px;
+  color: var(--brand-primary);
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity var(--transition-fast);
 }
 
 .stock-card:hover .arrow {
   opacity: 1;
 }
 
-.base-currency {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-left: 2px;
-}
-
-.rate-warning {
-  color: var(--warning-color);
-  font-weight: bold;
-  cursor: help;
-}
-
 @media (max-width: 640px) {
+  .stock-card {
+    padding: 16px;
+  }
+
   .valuation-row {
-    grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 10px;
   }
-  
-  .value {
-    font-size: 20px;
+
+  .valuation-value {
+    font-size: 22px;
   }
-  
+
+  .metric-value {
+    font-size: 16px;
+  }
+
   .card-header {
-    flex-direction: column;
+    flex-direction: row;
+    align-items: center;
     gap: 8px;
   }
-  
-  .market-cap {
-    text-align: left;
+
+  .market-cap-row {
+    margin-bottom: 12px;
   }
 }
 </style>

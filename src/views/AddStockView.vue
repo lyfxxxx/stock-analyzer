@@ -1,15 +1,14 @@
 <template>
   <div class="add-stock-view">
-    <header class="page-header">
-      <div class="header-content">
+    <div class="sub-header">
+      <div class="sub-header-inner">
         <button class="back-button" @click="goBack">
-          <span>←</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
           返回
         </button>
-        <h1>{{ isEditMode ? '编辑股票' : '新增股票分析' }}</h1>
-        <div class="placeholder"></div>
+        <h1 class="page-title">{{ isEditMode ? '编辑股票' : '新增股票分析' }}</h1>
       </div>
-    </header>
+    </div>
 
     <main class="main-content">
       <div class="form-container">
@@ -673,6 +672,16 @@ async function performSearch() {
 }
 
 async function selectSearchResult(result: typeof stockStore.searchResults[0]) {
+  // 检查是否已存在相同代码的股票
+  const existingStock = stockStore.stocks.find(
+    s => s.code === result.code && s.market === result.market
+  )
+  
+  if (existingStock) {
+    alert(`股票 ${existingStock.name} (${existingStock.code}) 已存在于列表中，请勿重复添加。`)
+    return
+  }
+  
   form.code = result.code
   form.market = result.market
   form.name = result.name
@@ -839,6 +848,16 @@ async function handleFilesSelected(files: Partial<Record<'benefit' | 'debt' | 'c
 async function generateData() {
   if (!validateForm()) return
 
+  // 检查是否已存在相同代码的股票（手动模式）
+  const existingStock = stockStore.stocks.find(
+    s => s.code === form.code && s.market === form.market
+  )
+  
+  if (existingStock) {
+    alert(`股票 ${existingStock.name} (${existingStock.code}) 已存在于列表中，请勿重复添加。`)
+    return
+  }
+
   generating.value = true
 
   try {
@@ -863,10 +882,19 @@ async function generateData() {
 async function saveStock() {
   if (!previewData.value) return
 
+  // 检查是否已存在相同代码的股票
+  const rawData = toRaw(previewData.value)
+  const existingStock = stockStore.stocks.find(
+    s => s.code === rawData.code && s.market === rawData.market
+  )
+  
+  if (existingStock && !isEditMode.value) {
+    alert(`股票 ${existingStock.name} (${existingStock.code}) 已存在于列表中，请勿重复添加。`)
+    return
+  }
+
   saving.value = true
   try {
-    const rawData = toRaw(previewData.value)
-    
     if (isEditMode.value && editingStockId.value) {
       await stockStore.recalculateStock(editingStockId.value, {
         name: form.name,
@@ -926,38 +954,51 @@ function formatCurrency(value: number | undefined): string {
 <style scoped>
 .add-stock-view {
   min-height: 100vh;
-  background: var(--bg-primary);
+  background-color: var(--bg-primary);
 }
 
-.page-header {
-  background: var(--card-bg);
-  border-bottom: 1px solid var(--border-color);
-  padding: 0 24px;
+.sub-header {
+  background-color: var(--header-bg);
+  border-bottom: 1px solid var(--header-border);
+  box-shadow: var(--header-shadow);
   position: sticky;
   top: 0;
   z-index: 100;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-.header-content {
-  max-width: 900px;
+.sub-header-inner {
+  max-width: 1400px;
   margin: 0 auto;
+  padding: 0 24px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  height: 64px;
+  height: 52px;
+  gap: 12px;
 }
+
+.page-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Keep all old class names but update to use theme variables */
 
 .back-button {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: none;
   border: none;
   color: var(--text-secondary);
   font-size: 14px;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: color var(--transition-fast);
   padding: 0;
+  font-family: var(--font-sans);
 }
 
 .back-button:hover {

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>Testing East Money API Proxy</h1>
+    <button id="testBtn">Test API</button>
+    <pre id="result"></pre>
+    
+    <script>
+        document.getElementById('testBtn').addEventListener('click', async () => {
+            const resultEl = document.getElementById('result');
+            resultEl.textContent = 'Loading...';
+            
+            try {
+                console.log('[test] Starting API request...');
+                const response = await fetch('/api/eastmoney/api/qt/stock/get?secid=116.00700&fields=f57,f58');
+                console.log('[test] Response status:', response.status);
+                
+                const text = await response.text();
+                console.log('[test] Response body:', text);
+                
+                resultEl.textContent = `Status: ${response.status}\n\nHeaders:\n${JSON.stringify(Object.fromEntries(response.headers), null, 2)}\n\nBody:\n${text || '(empty)'}`;
+            } catch (error) {
+                console.error('[test] Error:', error);
+                resultEl.textContent = `Error: ${error.message}\n\nStack: ${error.stack}`;
+            }
+        });
+    </script>
+</body>
+</html>
