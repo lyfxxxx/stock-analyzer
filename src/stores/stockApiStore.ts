@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { StockData } from '@/types/stock'
+import type { StockData, TargetPriceConfig } from '@/types/stock'
 import { fetchEastMoneyStockInfo, testEastMoneyAPI, searchStocksByName } from '@/api/eastmoney'
 import { testTencentAPI, fetchTencentHKFinancialReport } from '@/api/tencent'
 import { fetchAStockFinancialReport } from '@/api/financialReportA'
@@ -169,6 +169,7 @@ export const useStockApiStore = defineStore('stockApi', () => {
         const updatedStock = {
           ...stock,
           marketCap: info.marketCap,
+          totalShares: info.totalShares,
           updatedAt: Date.now()
         }
         await stockDB.put(updatedStock)
@@ -230,7 +231,16 @@ export const useStockApiStore = defineStore('stockApi', () => {
         netCashProjected: financialResult.netCashProjected,
         currentRatioProjected: financialResult.currentRatioProjected,
         peRatioProjected: financialResult.peRatioProjected,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
+        ...(info.totalShares !== null && { totalShares: info.totalShares }),
+        // Auto-set target price config if not already configured
+        ...(!stock.targetPriceConfig && info.totalShares !== null && {
+          targetPriceConfig: {
+            enabled: true,
+            valuationType: 1 as const,
+            targetValuation: 10
+          } as TargetPriceConfig
+        })
       }
       await stockDB.put(updatedStock)
 

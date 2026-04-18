@@ -3,10 +3,12 @@ import { validateApiResponse } from '@/utils/validateApiResponse'
 import { eastMoneyStockInfoSchema, stockSearchResultSchema } from '@/validation/apiSchemas'
 import { logger } from '@/utils/logger'
 import { withRetry, fetchWithTimeout, HttpError } from '@/utils/retry'
+import { RateLimiter } from '@/utils/rateLimiter'
 
 declare const __DEV__: boolean
 
 const EASTMONEY_API_BASE = 'https://push2.eastmoney.com/api/qt/stock/get'
+const stockInfoRateLimiter = new RateLimiter(500)
 
 export async function fetchEastMoneyStockInfo(code: string, market: 'HK' | 'A'): Promise<ApiStockInfo | null> {
   try {
@@ -19,10 +21,10 @@ export async function fetchEastMoneyStockInfo(code: string, market: 'HK' | 'A'):
       secid = code.startsWith('6') ? `1.${code}` : `0.${code}`
     }
 
-    // f57 = code, f58 = name, f116 = total market cap
+    // f57 = code, f58 = name, f116 = total market cap, f84 = total shares
     const result = await withRetry(async () => {
       const response = await fetchWithTimeout(
-        `${EASTMONEY_API_BASE}?secid=${secid}&fields=f57,f58,f116`,
+        `${EASTMONEY_API_BASE}?secid=${secid}&fields=f57,f58,f116,f84`,
         {
           method: 'GET',
           mode: 'cors',
@@ -40,17 +42,76 @@ export async function fetchEastMoneyStockInfo(code: string, market: 'HK' | 'A'):
     })
 
     if (result.data) {
+      const rawTotalShares = result.data.f84
+      const totalShares = rawTotalShares ? parseFloat(rawTotalShares) / 100000000 : null
       return validateApiResponse({
         name: result.data.f58,
         code: result.data.f57,
         market,
-        marketCap: parseFloat(result.data.f116) / 100000000
+        marketCap: parseFloat(result.data.f116) / 100000000,
+        totalShares
       }, eastMoneyStockInfoSchema)
     }
 
     return null
   } catch (error) {
     logger.error('eastmoney', 'Failed to fetch stock info:', error)
+    return null
+  }
+}
+
+/**
+ * Fetch total shares for a stock from East Money API.
+ * Returns shares in 亿股 (hundred million shares).
+ * Known reference: 贵州茅台 (600519) ≈ 12.56亿股
+ *
+ * @param code Stock code (e.g., '600519' for A-share, '00700' for HK)
+ * @param market 'HK' or 'A'
+ * @returns Total shares in 亿股, or null on failure
+ */
+export async function fetchStockTotalShares(code: string, market: 'HK' | 'A'): Promise<number | null> {
+  try {
+    let secid: string
+    if (market === 'HK') {
+      secid = `116.${code}`
+    } else {
+      secid = code.startsWith('6') ? `1.${code}` : `0.${code}`
+    }
+
+    // f84 = total shares (总股本), returned in 股 (shares)
+    // Divide by 100000000 to get 亿股 (hundred million shares)
+    const result = await stockInfoRateLimiter.enqueue(async () => {
+      return withRetry(async () => {
+        const response = await fetchWithTimeout(
+          `${EASTMONEY_API_BASE}?secid=${secid}&fields=f84`,
+          {
+            method: 'GET',
+            mode: 'cors',
+            headers: {
+              'Accept': 'application/json'
+            }
+          }
+        )
+
+        if (!response.ok) {
+          throw new HttpError(`HTTP ${response.status}`, response.status, response)
+        }
+
+        return response.json()
+      })
+    })
+
+    if (result.data) {
+      // f84 is total shares (总股本)
+      const rawShares = result.data.f84
+      if (rawShares && typeof rawShares === 'number') {
+        return rawShares / 100000000
+      }
+    }
+
+    return null
+  } catch (error) {
+    logger.error('eastmoney', 'Failed to fetch total shares:', error)
     return null
   }
 }

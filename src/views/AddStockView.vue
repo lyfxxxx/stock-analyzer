@@ -522,7 +522,9 @@ onMounted(async () => {
         valuation2: stock.valuation2,
         yearlyData: stock.yearlyData,
         baseCurrency: stock.baseCurrency,
-        isUsingProjectedData: stock.isUsingProjectedData || false
+        isUsingProjectedData: stock.isUsingProjectedData || false,
+        totalShares: null,
+        targetPriceConfig: null
       }
     }
   }
@@ -762,6 +764,8 @@ async function fetchFinancialData() {
         netCashProjected: reportData.netCashProjected ?? false,
         currentRatioProjected: reportData.currentRatioProjected ?? false,
         peRatioProjected: reportData.peRatioProjected ?? false,
+        totalShares: null,
+        targetPriceConfig: null
       }
       displayCurrency.value = reportData.baseCurrency
       // 成功获取数据后，退出编辑模式并更新保存的状态
@@ -881,7 +885,9 @@ async function generateData() {
           code: form.code,
           market: form.market,
           marketCap: form.marketCap,
-          ...result
+          ...result,
+          totalShares: null,
+          targetPriceConfig: null
         }
       }
     }

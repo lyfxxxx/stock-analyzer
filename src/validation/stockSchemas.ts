@@ -1,6 +1,15 @@
 import { z } from 'zod'
 
 // ============================================================
+// TargetPriceConfig Schema
+// ============================================================
+export const targetPriceConfigSchema = z.object({
+  enabled: z.boolean(),
+  valuationType: z.union([z.literal(1), z.literal(2)]),
+  targetValuation: z.number(),
+})
+
+// ============================================================
 // StockData Schema
 // Mirrors StockData from src/types/stock.ts
 // ============================================================
@@ -42,4 +51,6 @@ export const stockDataSchema = z.object({
   netCashProjected: z.boolean().optional(),
   currentRatioProjected: z.boolean().optional(),
   peRatioProjected: z.boolean().optional(),
+  totalShares: z.union([z.number(), z.null()]),
+  targetPriceConfig: z.union([targetPriceConfigSchema, z.null()]),
 })

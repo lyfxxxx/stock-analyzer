@@ -2,13 +2,14 @@ import { z } from 'zod'
 
 // ============================================================
 // East Money Stock Info Schema
-// Mirrors ApiStockInfo: { name, code, market, marketCap }
+// Mirrors ApiStockInfo: { name, code, market, marketCap, totalShares }
 // ============================================================
 export const eastMoneyStockInfoSchema = z.object({
   name: z.string(),
   code: z.string(),
   market: z.enum(['HK', 'A']),
   marketCap: z.number(),
+  totalShares: z.number().nullable(),
 })
 
 // ============================================================

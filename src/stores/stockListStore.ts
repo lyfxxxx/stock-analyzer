@@ -4,9 +4,18 @@ import type { StockData } from '@/types/stock'
 import { stockDB } from '@/db'
 import { logger } from '@/utils/logger'
 import { useStockUIStore } from './stockUIStore'
+import { fetchStockTotalShares } from '@/api/eastmoney'
+import { calculateTargetPrice } from '@/utils/targetPriceCalculator'
+import type { TargetPriceConfig } from '@/types/stock'
 
 export const useStockListStore = defineStore('stockList', () => {
   const stocks = ref<StockData[]>([])
+
+  // Debounce state for lazy backfill
+  const backfillDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  const backfillPending = new Set<string>()
+  let backfillDebounceTimeout: ReturnType<typeof setTimeout> | null = null
+  const BACKFILL_DEBOUNCE_MS = 500
 
   const sortedStocks = computed(() => {
     return [...stocks.value].sort((a, b) => b.updatedAt - a.updatedAt)
@@ -36,6 +45,12 @@ export const useStockListStore = defineStore('stockList', () => {
     }
     if (normalized.peRatioProjected === undefined) {
       normalized.peRatioProjected = false
+    }
+    if (normalized.totalShares === undefined) {
+      normalized.totalShares = null
+    }
+    if (normalized.targetPriceConfig === undefined) {
+      normalized.targetPriceConfig = null
     }
     return normalized
   }
@@ -93,7 +108,38 @@ export const useStockListStore = defineStore('stockList', () => {
       await stockDB.init()
       const stock = await stockDB.get(id)
       if (!stock) return null
-      return normalizeStockData(stock)
+
+      const normalized = normalizeStockData(stock)
+
+      // Lazy backfill: if totalShares is null and not already pending, trigger fetch
+      if (normalized.totalShares === null && !backfillPending.has(id)) {
+        backfillPending.add(id)
+
+        // Debounce the actual fetch to prevent excessive API requests
+        if (backfillDebounceTimeout) {
+          clearTimeout(backfillDebounceTimeout)
+        }
+        backfillDebounceTimeout = setTimeout(async () => {
+          try {
+            const fetchedShares = await fetchStockTotalShares(normalized.code, normalized.market)
+            if (fetchedShares !== null) {
+              const updated = { ...normalized, totalShares: fetchedShares }
+              await stockDB.put(updated)
+              // Update the reactive stocks ref if this stock is loaded
+              const idx = stocks.value.findIndex(s => s.id === normalized.id)
+              if (idx !== -1) {
+                stocks.value[idx] = updated
+              }
+            }
+          } catch (err) {
+            logger.error('stockListStore', 'Backfill totalShares failed:', err)
+          } finally {
+            backfillPending.delete(normalized.id)
+          }
+        }, BACKFILL_DEBOUNCE_MS)
+      }
+
+      return normalized
     } catch (err) {
       logger.error('stockListStore', 'Get stock error:', err)
       return null
@@ -168,6 +214,107 @@ export const useStockListStore = defineStore('stockList', () => {
     }
   }
 
+  async function updateTargetPriceConfig(
+    id: string,
+    config: TargetPriceConfig
+  ) {
+    const ui = useStockUIStore()
+    ui.loading = true
+    ui.error = null
+    try {
+      const stock = await stockDB.get(id)
+      if (!stock) {
+        throw new Error('股票不存在')
+      }
+      const updatedStock: StockData = {
+        ...stock,
+        targetPriceConfig: {
+          enabled: config.enabled,
+          valuationType: config.valuationType,
+          targetValuation: config.targetValuation
+        },
+        updatedAt: Date.now()
+      }
+      await stockDB.put(updatedStock)
+      await loadStocks()
+    } catch (err) {
+      ui.error = err instanceof Error ? err.message : '更新目标价配置失败'
+      throw err
+    } finally {
+      ui.loading = false
+    }
+  }
+
+  function getTargetPrice(id: string) {
+    const stock = stocks.value.find(s => s.id === id)
+    if (!stock) {
+      return { price: null as number | null, error: null }
+    }
+
+    const config = stock.targetPriceConfig
+    if (!config || !config.enabled) {
+      return { price: null as number | null, error: null }
+    }
+
+    return calculateTargetPrice({
+      targetValuation: config.targetValuation,
+      valuationType: config.valuationType,
+      freeCashFlow: stock.freeCashFlow ?? 0,
+      netProfit: stock.netProfit ?? 0,
+      netCash: stock.netCash ?? 0,
+      totalShares: stock.totalShares,
+      currentRatio: stock.currentRatio
+    })
+  }
+
+  async function resetTargetPriceConfig(id: string) {
+    const ui = useStockUIStore()
+    ui.loading = true
+    ui.error = null
+    try {
+      const stock = await stockDB.get(id)
+      if (!stock) {
+        throw new Error('股票不存在')
+      }
+      const updatedStock: StockData = {
+        ...stock,
+        targetPriceConfig: null,
+        updatedAt: Date.now()
+      }
+      await stockDB.put(updatedStock)
+      await loadStocks()
+    } catch (err) {
+      ui.error = err instanceof Error ? err.message : '重置目标价配置失败'
+      throw err
+    } finally {
+      ui.loading = false
+    }
+  }
+
+  async function updateTotalShares(id: string, shares: number) {
+    const ui = useStockUIStore()
+    ui.loading = true
+    ui.error = null
+    try {
+      const stock = await stockDB.get(id)
+      if (!stock) {
+        throw new Error('股票不存在')
+      }
+      const updatedStock: StockData = {
+        ...stock,
+        totalShares: shares,
+        updatedAt: Date.now()
+      }
+      await stockDB.put(updatedStock)
+      await loadStocks()
+    } catch (err) {
+      ui.error = err instanceof Error ? err.message : '更新总股本失败'
+      throw err
+    } finally {
+      ui.loading = false
+    }
+  }
+
   return {
     stocks,
     sortedStocks,
@@ -178,6 +325,10 @@ export const useStockListStore = defineStore('stockList', () => {
     getStockById,
     updateStock,
     recalculateStock,
+    updateTargetPriceConfig,
+    getTargetPrice,
+    resetTargetPriceConfig,
+    updateTotalShares,
     normalizeStockData
   }
 })

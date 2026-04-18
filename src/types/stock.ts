@@ -1,5 +1,11 @@
 export type CurrencyType = 'USD' | 'HKD' | 'CNY' | 'OTHER'
 
+export interface TargetPriceConfig {
+  enabled: boolean
+  valuationType: 1 | 2
+  targetValuation: number
+}
+
 export interface StockData {
   id: string
   name: string
@@ -24,6 +30,8 @@ export interface StockData {
   netCashProjected?: boolean
   currentRatioProjected?: boolean
   peRatioProjected?: boolean
+  totalShares: number | null
+  targetPriceConfig: TargetPriceConfig | null
 }
 
 export interface YearlyData {
@@ -62,6 +70,8 @@ export interface StockAnalysisResult {
   netCashProjected?: boolean
   currentRatioProjected?: boolean
   peRatioProjected?: boolean
+  totalShares: number | null
+  targetPriceConfig: TargetPriceConfig | null
 }
 
 export interface ExcelData {
@@ -78,6 +88,7 @@ export interface ApiStockInfo {
   code: string
   market: 'HK' | 'A'
   marketCap: number
+  totalShares: number | null
 }
 
 export interface StockSearchResult extends ApiStockInfo {

@@ -155,6 +155,43 @@
         </div>
       </section>
 
+      <!-- Target Price -->
+      <section class="section-card">
+        <h2 class="section-title">目标价</h2>
+        <div v-if="targetPriceResult.error" class="target-price-error">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <span>{{ targetPriceResult.error }}</span>
+        </div>
+        <div v-else-if="targetPriceResult.price !== null" class="target-price-result">
+          <div class="target-price-display">
+            <span class="target-price-value font-mono-nums">{{ targetPriceResult.price.toFixed(2) }}</span>
+            <span class="target-price-unit">{{ targetPriceUnit }}</span>
+          </div>
+          <div class="target-price-formula">
+            <span class="formula-label">{{ stock?.targetPriceConfig?.valuationType === 1 ? '现金流折现' : '市盈率' }} × {{ stock?.targetPriceConfig?.valuationType === 1 ? 'FCF' : '净利润' }}</span>
+            <span class="formula-multiplier">{{ stock?.targetPriceConfig?.targetValuation?.toFixed(1) }}x</span>
+          </div>
+          <div class="target-price-note">
+            <span class="note-icon">ⓘ</span>
+            <span class="note-text">
+              目标价 = 目标估值倍数 × {{ stock?.targetPriceConfig?.valuationType === 1 ? '自由现金流' : '净利润' }}
+              <template v-if="stock?.currentRatio === null || stock?.currentRatio >= 1.5"> + 净现金</template>
+              ÷ 总股本
+            </span>
+          </div>
+        </div>
+        <div v-else class="target-price-unset">
+          <span class="unset-text">未设置目标价</span>
+        </div>
+        <button class="config-target-btn" @click="openTargetPriceConfig">
+          {{ targetPriceResult.price !== null ? '修改目标价' : '配置目标价' }}
+        </button>
+      </section>
+
       <!-- Charts -->
       <div class="charts-grid">
         <ValuationChart
@@ -224,6 +261,15 @@
       <p>未找到股票数据</p>
       <button @click="goBack" class="back-link">返回首页</button>
     </div>
+
+    <!-- Target Price Config Modal -->
+    <TargetPriceConfig
+      v-if="stock"
+      :stock-id="stock.id"
+      v-model:visible="showTargetPriceConfig"
+      :initial-config="stock.targetPriceConfig"
+      @saved="onTargetPriceSaved"
+    />
   </div>
 </template>
 
@@ -234,6 +280,7 @@ import { useStockStore } from '@/stores/stockStore'
 import { fetchExchangeRates } from '@/api/exchangeRate'
 import type { StockData } from '@/types/stock'
 import ValuationChart from '@/components/ValuationChart.vue'
+import TargetPriceConfig from '@/components/TargetPriceConfig.vue'
 import { logger } from '@/utils/logger'
 import { getValuationLevel } from '@/utils/formatters'
 
@@ -254,10 +301,34 @@ const exchangeRates = ref<Record<string, number>>({
   CNY: 0.874297   // 1 HKD = 0.874297 CNY
 })
 const sortOrder = ref<'asc' | 'desc'>('desc')
+const showTargetPriceConfig = ref(false)
 
 const isThisStockUpdating = computed(() =>
   stock.value ? stockStore.currentlyUpdatingIds.has(stock.value.id) : false
 )
+
+// Target price
+const targetPriceResult = computed(() => {
+  if (!stock.value) return { price: null as number | null, error: null as string | null }
+  return stockStore.getTargetPrice(stock.value.id)
+})
+
+const targetPriceUnit = computed(() => {
+  return stock.value?.market === 'A' ? '元' : '港元'
+})
+
+function openTargetPriceConfig() {
+  showTargetPriceConfig.value = true
+}
+
+function onTargetPriceSaved() {
+  // Refresh stock data after target price config is saved
+  if (stock.value) {
+    stockStore.getStockById(stock.value.id).then(updated => {
+      if (updated) stock.value = updated
+    })
+  }
+}
 
 const sortedYearlyData = computed(() => {
   if (!stock.value) return []
@@ -543,6 +614,106 @@ function goBack() { router.push('/') }
 .note-icon { color: var(--brand-primary); font-size: 14px; }
 .note-text { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
 
+/* Target Price */
+.target-price-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-danger);
+  font-size: 14px;
+  padding: 16px;
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-lg, 8px);
+}
+
+.target-price-result {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.target-price-display {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.target-price-value {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--brand-primary);
+}
+
+.target-price-unit {
+  font-size: 16px;
+  color: var(--text-muted);
+}
+
+.target-price-formula {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-lg, 8px);
+}
+
+.formula-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.formula-multiplier {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--brand-primary);
+}
+
+.target-price-note {
+  margin-top: 4px;
+  padding: 12px;
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-lg, 8px);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.note-icon { color: var(--brand-primary); font-size: 14px; }
+.note-text { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+
+.target-price-unset {
+  padding: 24px;
+  text-align: center;
+}
+
+.unset-text {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.config-target-btn {
+  margin-top: 16px;
+  padding: 10px 20px;
+  background-color: var(--brand-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md, 6px);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  font-family: var(--font-sans);
+  min-height: 44px;
+  min-width: 44px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.config-target-btn:hover {
+  background-color: var(--brand-primary-hover);
+}
+
 /* Charts */
 .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; }
 
@@ -592,10 +763,18 @@ function goBack() { router.push('/') }
   .sub-header-inner { padding: 0 16px; height: 48px; }
   .page-title { font-size: 14px; }
   .update-btn .update-btn-text { display: none; }
-  .detail-content { padding: 16px 16px 32px; gap: 16px; }
+  .detail-content { padding: 16px 16px 32px; gap: 16px; overflow-x: hidden; }
   .overview-grid { grid-template-columns: repeat(2, 1fr); }
   .valuation-grid { grid-template-columns: 1fr; }
   .charts-grid { grid-template-columns: 1fr; }
   .val-result { font-size: 28px; }
+  .target-price-value { font-size: 28px; }
+  .target-price-display { flex-wrap: wrap; }
+  .target-price-formula { flex-direction: column; gap: 6px; }
+  .target-price-note { flex-direction: column; }
+  .config-target-btn { width: 100%; justify-content: center; }
+  .section-card { padding: 16px; }
+  .section-title { font-size: 15px; margin-bottom: 16px; }
+  .data-table-wrapper { overflow-x: auto; max-width: 100%; }
 }
 </style>

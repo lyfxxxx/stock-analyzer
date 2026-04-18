@@ -1,21 +1,58 @@
 {
-  "active_plan": "D:\\workspace\\stock-project\\stock-analyzer\\.sisyphus\\plans\\harness-engineering.md",
-  "started_at": "2026-04-06T03:15:36.763Z",
+  "active_plan": "D:\\workspace\\stock-project\\stock-analyzer\\.sisyphus\\plans\\target-price-feature.md",
+  "started_at": "2026-04-18T06:20:53.792Z",
   "session_ids": [
-    "ses_2a3a8bc57ffeAas22re1fz8wiJ",
-    "ses_29f34b74bffeSG5fxHOLqiR2tn",
-    "ses_29f344d1cffeAoTdq4FjiWytDD"
+    "ses_260e3e31effeWt0lqBSTdHVUFA"
   ],
-  "plan_name": "harness-engineering",
+  "session_origins": {
+    "ses_260e3e31effeWt0lqBSTdHVUFA": "direct"
+  },
+  "plan_name": "target-price-feature",
   "agent": "atlas",
   "task_sessions": {
-    "final-wave:f1": {
-      "task_key": "final-wave:f1",
-      "task_label": "F1",
-      "task_title": "**Plan Compliance Audit** — `oracle`",
-      "session_id": "ses_29f34b74bffeSG5fxHOLqiR2tn",
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Extend StockData type + Zod validation schemas",
+      "session_id": "ses_260be0352fferkLCGo5xVFbJIf",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-04-18T06:25:32.531Z"
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "IndexedDB migration v2 → v3",
+      "session_id": "ses_260ba10c1ffe8tFQDqDpvsVw9x",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-04-18T06:28:03.040Z"
+    },
+    "todo:3": {
+      "task_key": "todo:3",
+      "task_label": "3",
+      "task_title": "Target price calculator utility + unit tests",
+      "session_id": "ses_260b8c78effe3tRWLewRCXHhcE",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-04-18T06:31:12.527Z"
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "Fetch total shares from East Money API + wire into stock flow",
+      "session_id": "ses_260b5c39fffeMRXcBoCOQu5nk5",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-18T06:33:59.426Z"
+    },
+    "todo:5": {
+      "task_key": "todo:5",
+      "task_label": "5",
+      "task_title": "Store method for target price configuration",
+      "session_id": "ses_2607430abffe3JyQzo7VfCOILm",
       "agent": "oracle",
-      "updated_at": "2026-04-06T03:17:58.943Z"
+      "updated_at": "2026-04-18T07:45:16.562Z"
     }
   }
 }

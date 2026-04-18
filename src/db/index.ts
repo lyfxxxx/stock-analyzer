@@ -1,7 +1,7 @@
 import { logger } from '@/utils/logger'
 
 const DB_NAME = 'StockAnalyzerDB'
-const DB_VERSION = 2
+const DB_VERSION = 3
 const STORE_NAME = 'stocks'
 
 export class StockDatabase {

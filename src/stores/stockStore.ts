@@ -35,6 +35,10 @@ export function useStockStore() {
     getStockById: list.getStockById,
     updateStock: list.updateStock,
     recalculateStock: list.recalculateStock,
+    updateTargetPriceConfig: list.updateTargetPriceConfig,
+    getTargetPrice: list.getTargetPrice,
+    resetTargetPriceConfig: list.resetTargetPriceConfig,
+    updateTotalShares: list.updateTotalShares,
 
     // Actions (from API store)
     testAPIs: api.testAPIs,
