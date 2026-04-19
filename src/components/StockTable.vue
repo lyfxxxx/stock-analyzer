@@ -9,6 +9,14 @@
               {{ sortKey === 'name' && sortOrder === 'desc' ? '↓' : '↑' }}
             </span>
           </th>
+          <th class="col-target-price">目标价</th>
+          <th class="col-valuation" @click="toggleSort('valuation1')">
+            估值1
+            <span class="sort-icon" :class="{ active: sortKey === 'valuation1' }">
+              {{ sortKey === 'valuation1' && sortOrder === 'desc' ? '↓' : '↑' }}
+            </span>
+          </th>
+          <th class="col-valuation" @click="toggleSort('valuation2')">估值2</th>
           <th class="col-number" @click="toggleSort('marketCap')">
             市值
             <span class="sort-icon" :class="{ active: sortKey === 'marketCap' }">
@@ -18,13 +26,6 @@
           <th class="col-number" @click="toggleSort('netCash')">净现金</th>
           <th class="col-number" @click="toggleSort('freeCashFlow')">FCF</th>
           <th class="col-number" @click="toggleSort('netProfit')">净利润</th>
-          <th class="col-valuation" @click="toggleSort('valuation1')">
-            估值1
-            <span class="sort-icon" :class="{ active: sortKey === 'valuation1' }">
-              {{ sortKey === 'valuation1' && sortOrder === 'desc' ? '↓' : '↑' }}
-            </span>
-          </th>
-          <th class="col-valuation" @click="toggleSort('valuation2')">估值2</th>
           <th class="col-number" @click="toggleSort('peRatio')">PE</th>
           <th class="col-number" @click="toggleSort('currentRatio')">流动比率</th>
           <th class="col-date">更新</th>
@@ -49,6 +50,37 @@
               </div>
             </div>
           </td>
+          <td class="col-target-price">
+            <div class="target-price-cell" @click.stop="onTargetPriceClick(stock)">
+              <template v-if="getTargetPriceForStock(stock.id).error">
+                <span class="tp-error">{{ getTargetPriceErrorText(getTargetPriceForStock(stock.id).error) }}</span>
+              </template>
+              <template v-else-if="getTargetPriceForStock(stock.id).price !== null">
+                <span class="tp-price font-mono-nums">{{ getTargetPriceForStock(stock.id).price!.toFixed(2) }}</span>
+                <span class="tp-unit">{{ stock.market === 'A' ? '元' : '港元' }}</span>
+              </template>
+              <template v-else>
+                <span class="tp-unconfigured">未设置</span>
+                <span class="tp-hint">点击配置</span>
+              </template>
+            </div>
+          </td>
+          <td class="col-valuation">
+            <div class="val-cell" :class="getValuationBgClass(getVal1(stock))">
+              <span class="font-mono-nums val-text" :class="getValClass(getVal1(stock))">
+                <template v-if="getVal1(stock) !== null">{{ getVal1(stock)!.toFixed(2) }}</template>
+                <template v-else><span class="na-text">N/A</span></template>
+              </span>
+            </div>
+          </td>
+          <td class="col-valuation">
+            <div class="val-cell" :class="getValuationBgClass(getVal2(stock))">
+              <span class="font-mono-nums val-text" :class="getValClass(getVal2(stock))">
+                <template v-if="getVal2(stock) !== null">{{ getVal2(stock)!.toFixed(2) }}</template>
+                <template v-else><span class="na-text">N/A</span></template>
+              </span>
+            </div>
+          </td>
           <td class="col-number font-mono-nums">{{ formatYi(stock.marketCap) }}</td>
           <td class="col-number font-mono-nums">
             <span :class="stock.netCash >= 0 ? 'text-positive' : 'text-negative'">{{ formatYi(stock.netCash) }}</span>
@@ -60,17 +92,6 @@
           <td class="col-number font-mono-nums">
             <span :class="stock.netProfit >= 0 ? 'text-positive' : 'text-negative'">{{ formatYi(stock.netProfit) }}</span>
             <span v-if="stock.netProfitProjected" class="projected-badge">预</span>
-          </td>
-          <td class="col-valuation">
-            <span class="font-mono-nums" :class="getValClass(getVal1(stock))">
-              <template v-if="getVal1(stock) !== null">{{ getVal1(stock)!.toFixed(2) }}</template>
-              <template v-else><span class="na-text">N/A</span></template>
-            </span>
-          </td>
-          <td class="col-valuation">
-            <span class="font-mono-nums" :class="getValClass(getVal2(stock))">
-              {{ getVal2(stock).toFixed(2) }}
-            </span>
           </td>
           <td class="col-number font-mono-nums" :class="getPeClass(stock.peRatio)">
             <template v-if="stock.peRatio !== null">{{ stock.peRatio.toFixed(1) }}x</template>
@@ -84,13 +105,23 @@
         </tr>
       </tbody>
     </table>
+    <TargetPriceConfig
+      v-if="editingTargetPriceId"
+      :stock-id="editingTargetPriceId"
+      :visible="editingTargetPriceId !== null"
+      :initial-config="getInitialTargetPriceConfig(editingTargetPriceId)"
+      @saved="onTargetPriceSaved"
+      @update:visible="(val: boolean) => { if (!val) editingTargetPriceId = null }"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { StockData } from '@/types/stock'
-import { formatYi, formatDate, getValuationClass } from '@/utils/formatters'
+import { formatYi, formatDate, getValuationClass, getValuationLevel } from '@/utils/formatters'
+import { useStockListStore } from '@/stores/stockListStore'
+import TargetPriceConfig from './TargetPriceConfig.vue'
 
 const props = defineProps<{
   stocks: StockData[]
@@ -128,8 +159,8 @@ const sortedStocks = computed(() => {
     else if (key === 'netCash') { aVal = a.netCash; bVal = b.netCash }
     else if (key === 'freeCashFlow') { aVal = a.freeCashFlow; bVal = b.freeCashFlow }
     else if (key === 'netProfit') { aVal = a.netProfit; bVal = b.netProfit }
-    else if (key === 'valuation1') { aVal = a.valuation1 ?? 9999; bVal = b.valuation1 ?? 9999 }
-    else if (key === 'valuation2') { aVal = a.valuation2; bVal = b.valuation2 }
+    else if (key === 'valuation1') { aVal = getVal1(a) ?? 9999; bVal = getVal1(b) ?? 9999 }
+    else if (key === 'valuation2') { aVal = getVal2(a) ?? 9999; bVal = getVal2(b) ?? 9999 }
     else if (key === 'peRatio') { aVal = a.peRatio ?? 9999; bVal = b.peRatio ?? 9999 }
     else if (key === 'currentRatio') { aVal = a.currentRatio ?? -9999; bVal = b.currentRatio ?? -9999 }
 
@@ -148,7 +179,7 @@ function getVal1(stock: StockData): number | null {
   return stock.valuation1
 }
 
-function getVal2(stock: StockData): number {
+function getVal2(stock: StockData): number | null {
   if (stock.currentRatio !== null && stock.currentRatio < 1.5) {
     return stock.peRatio ?? stock.valuation2
   }
@@ -169,6 +200,50 @@ function getPeClass(value: number | null): string {
 function getCurrentRatioClass(value: number | null): string {
   if (value === null) return 'metric-na'
   return value >= 1.5 ? 'metric-low' : 'metric-medium'
+}
+
+const stockListStore = useStockListStore()
+const editingTargetPriceId = ref<string | null>(null)
+
+function getValuationBgClass(value: number | null): string {
+  const level = getValuationLevel(value)
+  const bgClassMap: Record<string, string> = {
+    low: 'val-low-bg',
+    medium: 'val-medium-bg',
+    high: 'val-high-bg',
+    negative: 'val-negative-bg',
+    na: 'val-na-bg',
+  }
+  return bgClassMap[level] ?? ''
+}
+
+function getTargetPriceForStock(id: string) {
+  return stockListStore.getTargetPrice(id)
+}
+
+function getTargetPriceErrorText(error: string | null): string {
+  if (!error) return ''
+  const errorMap: Record<string, string> = {
+    'SHARES_MISSING': '缺总股本',
+    'SHARES_ZERO': '总股本为0',
+    'METRIC_ZERO': '指标为0',
+    'METRIC_NEGATIVE': '指标为负',
+    'VALUATION_INVALID': '估值无效',
+  }
+  return errorMap[error] ?? '计算失败'
+}
+
+function getInitialTargetPriceConfig(id: string) {
+  const stock = stockListStore.stocks.find(s => s.id === id)
+  return stock?.targetPriceConfig ?? null
+}
+
+function onTargetPriceClick(stock: StockData) {
+  editingTargetPriceId.value = stock.id
+}
+
+function onTargetPriceSaved() {
+  editingTargetPriceId.value = null
 }
 </script>
 
@@ -266,6 +341,14 @@ function getCurrentRatioClass(value: number | null): string {
   background-color: var(--bg-secondary);
 }
 
+.table-row:hover .col-target-price {
+  background-color: transparent;
+}
+
+.table-row:hover .col-target-price .target-price-cell {
+  background-color: var(--bg-tertiary);
+}
+
 .table-row:hover .col-name {
   background-color: var(--bg-card-hover);
 }
@@ -320,6 +403,74 @@ function getCurrentRatioClass(value: number | null): string {
 .val-negative { color: var(--val-negative) !important; }
 .val-na { color: var(--val-na) !important; }
 
+/* Valuation cell with background pill */
+.val-cell {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: var(--radius-md, 6px);
+  min-width: 50px;
+}
+
+.val-cell.val-low-bg { background-color: var(--val-low-bg); }
+.val-cell.val-medium-bg { background-color: var(--val-medium-bg); }
+.val-cell.val-high-bg { background-color: var(--val-high-bg); }
+.val-cell.val-negative-bg { background-color: var(--val-negative-bg); }
+.val-cell.val-na-bg { background-color: var(--val-na-bg); }
+
+.val-text.val-low { color: var(--val-low) !important; }
+.val-text.val-medium { color: var(--val-medium) !important; }
+.val-text.val-high { color: var(--val-high) !important; }
+.val-text.val-negative { color: var(--val-negative) !important; }
+.val-text.val-na { color: var(--val-na) !important; }
+
+/* Target price column */
+.col-target-price { width: 120px; text-align: left; }
+
+.target-price-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--radius-md, 6px);
+  transition: background-color var(--transition-fast);
+  min-height: 24px;
+  background-color: var(--bg-secondary);
+}
+
+.target-price-cell:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.tp-price {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-primary);
+}
+
+.tp-unit {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.tp-error {
+  font-size: 11px;
+  color: var(--color-danger);
+}
+
+.tp-unconfigured {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.tp-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.7;
+  margin-left: 2px;
+}
+
 /* Metric colors */
 .metric-low { color: var(--val-low) !important; }
 .metric-medium { color: var(--val-medium) !important; }
@@ -358,8 +509,10 @@ function getCurrentRatioClass(value: number | null): string {
 
   .col-name { width: 130px; }
   .col-number { width: 85px; }
-  .col-valuation { width: 70px; }
+  .col-valuation { width: 100px; }
   .col-date { width: 75px; }
+  .col-target-price { width: 100px; }
+  .val-cell { padding: 3px 6px; min-width: 45px; }
 }
 
 @media (max-width: 768px) {
