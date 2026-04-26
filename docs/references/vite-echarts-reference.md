@@ -1,8 +1,8 @@
-# Vite + ECharts Reference
+# Vite + ECharts 参考手册
 
-## Vite Configuration
+## Vite 配置
 
-### Basic Config (vite.config.ts)
+### 基础配置（vite.config.ts）
 ```typescript
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
@@ -33,7 +33,7 @@ export default defineConfig({
 })
 ```
 
-### Environment Variables
+### 环境变量
 ```typescript
 // .env.development
 VITE_API_BASE_URL=https://push2.eastmoney.com
@@ -41,22 +41,22 @@ VITE_API_BASE_URL=https://push2.eastmoney.com
 // .env.production
 VITE_API_BASE_URL=https://push2.eastmoney.com
 
-// Usage in code
+// 代码中使用
 const baseUrl = import.meta.env.VITE_API_BASE_URL
 ```
 
-### Build Commands
+### 构建命令
 ```bash
-npm run dev          # Development server with HMR
-npm run build        # Production build + type check
-npm run build-only   # Production build without type check
-npm run type-check   # TypeScript compiler only
-npm run preview      # Preview production build
+npm run dev          # 开发服务器（含 HMR 热更新）
+npm run build        # 生产构建 + 类型检查
+npm run build-only   # 生产构建（不含类型检查）
+npm run type-check   # 仅 TypeScript 编译检查
+npm run preview      # 预览生产构建
 ```
 
-## ECharts Integration
+## ECharts 集成
 
-### Basic Chart Component
+### 基础图表组件
 ```vue
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
@@ -97,7 +97,7 @@ onUnmounted(() => {
   chart?.dispose()
 })
 
-// Resize handler
+// 尺寸变化监听
 const resizeObserver = new ResizeObserver(() => {
   chart?.resize()
 })
@@ -112,12 +112,12 @@ watch(chartRef, (el) => {
 </template>
 ```
 
-### ECharts Chart Types Used
-- **Line Chart**: FCF and profit trends over time
-- **Bar Chart**: Year-over-year comparisons
-- **Gauge**: Valuation ratio indicators
+### 使用的图表类型
+- **折线图**: 自由现金流和净利润趋势
+- **柱状图**: 年度同比对比
+- **仪表盘**: 估值比率指标
 
-### ECharts Theme Customization
+### ECharts 主题定制
 ```typescript
 const theme = {
   color: ['#4FC08D', '#FF6B6B', '#FFA500', '#3498DB'],
@@ -128,18 +128,18 @@ const theme = {
 echarts.init(domElement, theme)
 ```
 
-## Performance Optimization
+## 性能优化
 
-### Code Splitting
+### 代码分割
 ```typescript
-// Lazy load routes
+// 路由懒加载
 const HomeView = () => import('@/views/HomeView.vue')
 const StockDetailView = () => import('@/views/StockDetailView.vue')
 ```
 
-### ECharts Tree Shaking
+### ECharts 按需引入
 ```typescript
-// Import only needed modules
+// 仅导入需要的模块
 import * as echarts from 'echarts/core'
 import { LineChart, BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'

@@ -94,6 +94,60 @@
             <template v-else><span class="na-text">N/A</span></template>
           </span>
         </div>
+        <div class="overview-card">
+          <span class="card-label">
+            ROE
+            <span class="info-trigger" @click.stop>
+              ⓘ
+              <span class="info-text">ROE = 净利润 / 股东权益</span>
+            </span>
+          </span>
+          <span class="card-value font-mono-nums">
+            <template v-if="stock.roe !== null && stock.roe !== undefined">{{ stock.roe.toFixed(1) }}%</template>
+            <template v-else><span class="na-text">-</span></template>
+            <span v-if="stock.roeProjected" class="projected-badge">预测</span>
+          </span>
+        </div>
+        <div class="overview-card">
+          <span class="card-label">
+            ROA
+            <span class="info-trigger" @click.stop>
+              ⓘ
+              <span class="info-text">ROA = 净利润 / 资产总额</span>
+            </span>
+          </span>
+          <span class="card-value font-mono-nums">
+            <template v-if="stock.roa !== null && stock.roa !== undefined">{{ stock.roa.toFixed(1) }}%</template>
+            <template v-else><span class="na-text">-</span></template>
+            <span v-if="stock.roaProjected" class="projected-badge">预测</span>
+          </span>
+        </div>
+        <div class="overview-card">
+          <span class="card-label">
+            股息支付率
+            <span class="info-trigger" @click.stop>
+              ⓘ
+              <span class="info-text">股息支付率 = 股息 / 净利润</span>
+            </span>
+          </span>
+          <span class="card-value font-mono-nums">
+            <template v-if="stock.dividendPayoutRatio !== null && stock.dividendPayoutRatio !== undefined">{{ (stock.dividendPayoutRatio > 1 ? stock.dividendPayoutRatio : stock.dividendPayoutRatio * 100).toFixed(1) }}%</template>
+            <template v-else><span class="na-text">-</span></template>
+          </span>
+        </div>
+        <div class="overview-card">
+          <span class="card-label">
+            PB
+            <span class="info-trigger" @click.stop>
+              ⓘ
+              <span class="info-text">PB = 市值 / 账面价值</span>
+            </span>
+          </span>
+          <span class="card-value font-mono-nums">
+            <template v-if="stock.pbRatio !== null && stock.pbRatio !== undefined">{{ stock.pbRatio.toFixed(2) }}x</template>
+            <template v-else><span class="na-text">-</span></template>
+          </span>
+        </div>
       </div>
 
       <!-- Valuation Analysis -->
@@ -145,12 +199,56 @@
               <template v-else>{{ stock.valuation2.toFixed(2) }}</template>
             </div>
           </div>
+          <!-- PRR Valuation Box -->
+          <div class="valuation-box prr-box" :class="[getPrrValuationBgClass(prrValuationLevel), { 'projected': stock.isUsingProjectedData }]">
+            <div class="val-header">
+              <span class="val-title">PRR <span v-if="stock.isUsingProjectedData" class="projected-badge">预测</span></span>
+              <span class="val-formula">{{ getPrrFormulaText(selectedPRRFormula) }}</span>
+            </div>
+            <div class="val-result font-mono-nums prr-value" :class="getPrrValuationTextClass(prrValuationLevel)" data-testid="detail-prr-value">
+              <template v-if="currentPRRValue !== null">
+                {{ formatPRR(currentPRRValue) }}
+              </template>
+              <template v-else>
+                <span class="na-text">N/A</span>
+              </template>
+            </div>
+            <div class="prr-valuation-text" :class="getPrrValuationTextClass(prrValuationLevel)">
+              {{ getPrrValuationText(currentPRRValue, stock.market === 'A' ? 'A' : 'H') }}
+            </div>
+            <div class="prr-formula-detail">
+              <span class="formula-name">{{ getPrrFormulaDescription(selectedPRRFormula) }}</span>
+              <span class="formula-values">{{ getPrrFormulaWithValues(selectedPRRFormula, { peRatio: stock.peRatio ?? null, roe: stock.roe ?? null, pbRatio: stock.pbRatio ?? null, dividendPayoutRatio: stock.dividendPayoutRatio ?? null, roa: stock.roa ?? null }) }}</span>
+            </div>
+            <!-- PRR Formula Selection -->
+            <div class="prr-formula-toggle">
+              <button
+                v-for="opt in prrFormulaOptions"
+                :key="opt.type"
+                class="formula-btn"
+                :class="{ 'is-active': opt.type === selectedPRRFormula }"
+                @click="selectPrrFormula(opt.type)"
+                type="button"
+              >
+                <span class="formula-btn-content">
+                  <span class="formula-name">{{ opt.name }}</span>
+                  <span class="formula-value font-mono-nums">{{ opt.value !== null ? opt.value.toFixed(2) + 'PR' : '-' }}</span>
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
         <div class="valuation-note">
           <span class="note-icon">ⓘ</span>
           <span class="note-text">
             流动比率 ≥ 1.5：使用 (市值 - 净现金) 为基础计算，反映股东真实回报<br>
-            流动比率 &lt; 1.5：使用 市值 为基础计算，反映整体企业价值
+            流动比率 &lt; 1.5：使用 市值 为基础计算，反映整体企业价值<br><br>
+            <strong>市赚率公式说明：</strong><br>
+            基础：PR = PE / ROE — 衡量每单位盈利能力的价格<br>
+            修正：PR = N × PE / ROE — N = 50 / 股息支付率，考虑分红政策修正<br>
+            周期：PR = PB × 100 / ROE² — 适用于周期股，PE不可靠时使用<br>
+            指数：PR = PE² / PB / 100 — 适用于指数基金和ETF<br>
+            衍生：PR = PE / (k × ROA) — k = 历史ROE/ROA比率（默认1.5），适用于回购导致ROE失真
           </span>
         </div>
       </section>
@@ -171,18 +269,34 @@
             <span class="target-price-value font-mono-nums">{{ targetPriceResult.price.toFixed(2) }}</span>
             <span class="target-price-unit">{{ targetPriceUnit }}</span>
           </div>
-          <div class="target-price-formula">
-            <span class="formula-label">{{ stock?.targetPriceConfig?.valuationType === 1 ? '现金流折现' : '市盈率' }} × {{ stock?.targetPriceConfig?.valuationType === 1 ? 'FCF' : '净利润' }}</span>
-            <span class="formula-multiplier">{{ stock?.targetPriceConfig?.targetValuation?.toFixed(1) }}x</span>
-          </div>
-          <div class="target-price-note">
-            <span class="note-icon">ⓘ</span>
-            <span class="note-text">
-              目标价 = 目标估值倍数 × {{ stock?.targetPriceConfig?.valuationType === 1 ? '自由现金流' : '净利润' }}
-              <template v-if="stock?.currentRatio === null || stock?.currentRatio >= 1.5"> + 净现金</template>
-              ÷ 总股本
-            </span>
-          </div>
+          <!-- PRR Target Price Formula -->
+          <template v-if="stock?.prrTargetPriceConfig?.enabled">
+            <div class="target-price-formula">
+              <span class="formula-label">PRR 目标价 = targetPR × ROE × 净利润 / 总股本</span>
+              <span class="formula-multiplier">{{ stock.prrTargetPriceConfig.targetPR.toFixed(1) }}PR</span>
+            </div>
+            <div class="target-price-note">
+              <span class="note-icon">ⓘ</span>
+              <span class="note-text">
+                目标市值 = {{ stock.prrTargetPriceConfig.targetPR.toFixed(2) }}PR × {{ stock.roe?.toFixed(1) ?? '-' }}% × {{ formatYi(stock.netProfit) }} = {{ formatYi(targetPriceResult.price * (stock.totalShares ?? 0)) }}
+              </span>
+            </div>
+          </template>
+          <!-- Traditional Target Price Formula -->
+          <template v-else>
+            <div class="target-price-formula">
+              <span class="formula-label">{{ stock?.targetPriceConfig?.valuationType === 1 ? '现金流折现' : '市盈率' }} × {{ stock?.targetPriceConfig?.valuationType === 1 ? 'FCF' : '净利润' }}</span>
+              <span class="formula-multiplier">{{ stock?.targetPriceConfig?.targetValuation?.toFixed(1) }}x</span>
+            </div>
+            <div class="target-price-note">
+              <span class="note-icon">ⓘ</span>
+              <span class="note-text">
+                目标价 = 目标估值倍数 × {{ stock?.targetPriceConfig?.valuationType === 1 ? '自由现金流' : '净利润' }}
+                <template v-if="stock?.currentRatio === null || stock?.currentRatio >= 1.5"> + 净现金</template>
+                ÷ 总股本
+              </span>
+            </div>
+          </template>
         </div>
         <div v-else class="target-price-unset">
           <span class="unset-text">未设置目标价</span>
@@ -210,6 +324,14 @@
           :exchange-rates="exchangeRates"
           :source-currency="stock.baseCurrency"
         />
+        <RoeChart
+          title="ROE趋势"
+          :yearly-data="stock.yearlyData"
+        />
+        <DividendChart
+          title="股息支付率趋势"
+          :yearly-data="stock.yearlyData"
+        />
       </div>
 
       <!-- Historical Data -->
@@ -227,6 +349,9 @@
                 <th>年份</th>
                 <th>自由现金流 ({{ currencyUnit }})</th>
                 <th>净利润 ({{ currencyUnit }})</th>
+                <th>ROE (%)</th>
+                <th>ROA (%)</th>
+                <th>股息支付率 (%)</th>
               </tr>
             </thead>
             <tbody>
@@ -237,6 +362,18 @@
                 </td>
                 <td class="font-mono-nums" :class="{ 'text-positive': data.netProfit > 0, 'text-negative': data.netProfit < 0 }">
                   {{ convertAndFormat(data.netProfit) }}
+                </td>
+                <td class="font-mono-nums">
+                  <template v-if="data.roe !== null && data.roe !== undefined">{{ data.roe.toFixed(1) }}</template>
+                  <template v-else>-</template>
+                </td>
+                <td class="font-mono-nums">
+                  <template v-if="data.roa !== null && data.roa !== undefined">{{ data.roa.toFixed(1) }}</template>
+                  <template v-else>-</template>
+                </td>
+                <td class="font-mono-nums">
+                  <template v-if="data.dividendPayoutRatio !== null && data.dividendPayoutRatio !== undefined">{{ data.dividendPayoutRatio.toFixed(1) }}</template>
+                  <template v-else>-</template>
                 </td>
               </tr>
             </tbody>
@@ -268,8 +405,11 @@
       :stock-id="stock.id"
       v-model:visible="showTargetPriceConfig"
       :initial-config="stock.targetPriceConfig"
+      :initial-prr-config="stock.prrTargetPriceConfig ?? null"
       @saved="onTargetPriceSaved"
     />
+
+
   </div>
 </template>
 
@@ -277,18 +417,25 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useStockStore } from '@/stores/stockStore'
+import { useStockListStore } from '@/stores/stockListStore'
 import { fetchExchangeRates } from '@/api/exchangeRate'
 import type { StockData } from '@/types/stock'
+import type { PRRFormulaType } from '@/types/prr'
 import ValuationChart from '@/components/ValuationChart.vue'
 import TargetPriceConfig from '@/components/TargetPriceConfig.vue'
+import RoeChart from '@/components/RoeChart.vue'
+import DividendChart from '@/components/DividendChart.vue'
+
 import { logger } from '@/utils/logger'
-import { getValuationLevel } from '@/utils/formatters'
+import { getValuationLevel, formatYi } from '@/utils/formatters'
+import { formatPRR, getPrrValuationText, getPrrFormulaText, getPrrFormulaDescription, getPrrFormulaWithValues, getPrrValuationBgClass, getPrrValuationTextClass, getPrrValuationLevel } from '@/utils/prr-formatter'
 
 type CurrencyType = 'HKD' | 'CNY' | 'USD' | 'OTHER'
 
 const router = useRouter()
 const route = useRoute()
 const stockStore = useStockStore()
+const stockListStore = useStockListStore()
 
 const stock = ref<StockData | null>(null)
 const loading = ref(true)
@@ -327,6 +474,61 @@ function onTargetPriceSaved() {
     stockStore.getStockById(stock.value.id).then(updated => {
       if (updated) stock.value = updated
     })
+  }
+}
+
+// PRR valuation
+const selectedPRRFormula = computed<PRRFormulaType>(() => {
+  return stock.value?.prrSelectedFormula ?? 'base'
+})
+
+const currentPRRValue = computed(() => {
+  if (!stock.value) return null
+  const formula = selectedPRRFormula.value
+  switch (formula) {
+    case 'base': return stock.value.prrBase ?? null
+    case 'adjusted': return stock.value.prrAdjusted ?? null
+    case 'cycle': return stock.value.prrCycle ?? null
+    case 'index': return stock.value.prrIndex ?? null
+    case 'derived': return stock.value.prrDerived ?? null
+    default: return null
+  }
+})
+
+const prrValuationLevel = computed(() => {
+  if (!stock.value) return 'unknown'
+  const market = stock.value.market === 'A' ? 'A' : 'H'
+  return getPrrValuationLevel(currentPRRValue.value, market)
+})
+
+const prrFormulaOptions = computed(() => {
+  if (!stock.value) return []
+  const formulas: PRRFormulaType[] = ['base', 'adjusted', 'cycle', 'index', 'derived']
+  return formulas.map(formula => ({
+    type: formula,
+    name: getPrrFormulaDescription(formula),
+    value: (() => {
+      switch (formula) {
+        case 'base': return stock.value?.prrBase ?? null
+        case 'adjusted': return stock.value?.prrAdjusted ?? null
+        case 'cycle': return stock.value?.prrCycle ?? null
+        case 'index': return stock.value?.prrIndex ?? null
+        case 'derived': return stock.value?.prrDerived ?? null
+        default: return null
+      }
+    })()
+  }))
+})
+
+async function selectPrrFormula(formula: PRRFormulaType) {
+  if (!stock.value) return
+  try {
+    await stockListStore.updatePrrFormula(stock.value.id, formula)
+    // Refresh stock data
+    const updated = await stockStore.getStockById(stock.value.id)
+    if (updated) stock.value = updated
+  } catch (e) {
+    logger.error('StockDetailView', 'Failed to update PRR formula:', e)
   }
 }
 
@@ -606,6 +808,79 @@ function goBack() { router.push('/') }
 .val-formula { font-size: 12px; color: var(--text-muted); }
 .method-note { color: var(--brand-primary); font-size: 11px; margin-left: 4px; }
 .val-result { font-size: 36px; font-weight: 700; }
+
+/* PRR Valuation Box */
+.prr-box { display: flex; flex-direction: column; gap: 8px; }
+.prr-value { font-size: 42px; font-weight: 700; }
+.prr-valuation-text { font-size: 16px; font-weight: 600; margin-top: -4px; }
+.prr-formula-toggle {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  flex-wrap: wrap;
+}
+.formula-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  min-width: 52px;
+  box-shadow: var(--shadow-xs);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.formula-btn:hover {
+  border-color: var(--brand-primary);
+  box-shadow: var(--shadow-sm);
+  background-color: var(--bg-card-hover);
+}
+.formula-btn.active {
+  background-color: var(--brand-primary-light);
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 1px var(--brand-primary), var(--shadow-sm);
+}
+.formula-btn-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 0;
+}
+.formula-name {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  transition: color var(--transition-fast);
+  white-space: nowrap;
+}
+.formula-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: color var(--transition-fast);
+  white-space: nowrap;
+}
+.formula-btn.active .formula-name {
+  color: var(--brand-primary);
+}
+.formula-btn.active .formula-desc {
+  color: var(--brand-primary);
+  opacity: 0.7;
+}
+.formula-value {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 700;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.formula-btn.active .formula-value {
+  color: var(--brand-primary);
+}
 
 .valuation-note {
   margin-top: 12px; padding: 12px; background-color: var(--bg-secondary);

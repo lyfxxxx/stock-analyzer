@@ -7,12 +7,13 @@ import { useStockUIStore } from './stockUIStore'
 import { fetchStockTotalShares } from '@/api/eastmoney'
 import { calculateTargetPrice } from '@/utils/targetPriceCalculator'
 import type { TargetPriceConfig } from '@/types/stock'
+import type { PRRFormulaType, PRRTargetPriceConfig } from '@/types/prr'
+import { calculatePRRTargetPrice } from '@/utils/prr-target-price'
 
 export const useStockListStore = defineStore('stockList', () => {
   const stocks = ref<StockData[]>([])
 
   // Debounce state for lazy backfill
-  const backfillDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
   const backfillPending = new Set<string>()
   let backfillDebounceTimeout: ReturnType<typeof setTimeout> | null = null
   const BACKFILL_DEBOUNCE_MS = 500
@@ -51,6 +52,57 @@ export const useStockListStore = defineStore('stockList', () => {
     }
     if (normalized.targetPriceConfig === undefined) {
       normalized.targetPriceConfig = null
+    }
+    // PRR fields normalization
+    if (normalized.roe === undefined) {
+      normalized.roe = null
+    }
+    if (normalized.roa === undefined) {
+      normalized.roa = null
+    }
+    if (normalized.roeProjected === undefined) {
+      normalized.roeProjected = false
+    }
+    if (normalized.roaProjected === undefined) {
+      normalized.roaProjected = false
+    }
+    if (normalized.pbRatio === undefined) {
+      normalized.pbRatio = null
+    }
+    if (normalized.dividendPayoutRatio === undefined) {
+      normalized.dividendPayoutRatio = null
+    }
+    if (normalized.prrBase === undefined) {
+      normalized.prrBase = null
+    }
+    if (normalized.prrAdjusted === undefined) {
+      normalized.prrAdjusted = null
+    }
+    if (normalized.prrCycle === undefined) {
+      normalized.prrCycle = null
+    }
+    if (normalized.prrIndex === undefined) {
+      normalized.prrIndex = null
+    }
+    if (normalized.prrDerived === undefined) {
+      normalized.prrDerived = null
+    }
+    if (normalized.prrSelectedFormula === undefined) {
+      normalized.prrSelectedFormula = 'base'
+    }
+    if (normalized.prrTargetPriceConfig === undefined) {
+      normalized.prrTargetPriceConfig = null
+    }
+    if (normalized.targetPriceMethod === undefined) {
+      // Backward compatibility: if prrTargetPriceConfig exists, default to 'prr'
+      // Otherwise if targetPriceConfig exists, default to 'traditional'
+      if (normalized.prrTargetPriceConfig?.enabled) {
+        normalized.targetPriceMethod = 'prr'
+      } else if (normalized.targetPriceConfig?.enabled) {
+        normalized.targetPriceMethod = 'traditional'
+      } else {
+        normalized.targetPriceMethod = 'traditional'
+      }
     }
     return normalized
   }
@@ -202,12 +254,50 @@ export const useStockListStore = defineStore('stockList', () => {
         valuation1: data.valuation1,
         valuation2: data.valuation2,
         yearlyData: data.yearlyData,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
+        // Preserve existing PRR fields (recalculation requires API access to indicators)
+        roe: stock.roe,
+        roa: stock.roa,
+        pbRatio: stock.pbRatio,
+        dividendPayoutRatio: stock.dividendPayoutRatio,
+        prrBase: stock.prrBase,
+        prrAdjusted: stock.prrAdjusted,
+        prrCycle: stock.prrCycle,
+        prrIndex: stock.prrIndex,
+        prrDerived: stock.prrDerived,
+        prrSelectedFormula: stock.prrSelectedFormula,
       }
       await stockDB.put(updatedStock)
       await loadStocks()
     } catch (err) {
       ui.error = err instanceof Error ? err.message : '重新计算失败'
+      throw err
+    } finally {
+      ui.loading = false
+    }
+  }
+
+  async function updatePrrFormula(
+    id: string,
+    formula: PRRFormulaType
+  ) {
+    const ui = useStockUIStore()
+    ui.loading = true
+    ui.error = null
+    try {
+      const stock = await stockDB.get(id)
+      if (!stock) {
+        throw new Error('股票不存在')
+      }
+      const updatedStock: StockData = {
+        ...stock,
+        prrSelectedFormula: formula,
+        updatedAt: Date.now()
+      }
+      await stockDB.put(updatedStock)
+      await loadStocks()
+    } catch (err) {
+      ui.error = err instanceof Error ? err.message : '更新PRR公式失败'
       throw err
     } finally {
       ui.loading = false
@@ -233,6 +323,7 @@ export const useStockListStore = defineStore('stockList', () => {
           valuationType: config.valuationType,
           targetValuation: config.targetValuation
         },
+        targetPriceMethod: 'traditional',
         updatedAt: Date.now()
       }
       await stockDB.put(updatedStock)
@@ -245,12 +336,60 @@ export const useStockListStore = defineStore('stockList', () => {
     }
   }
 
+  async function updatePrrTargetPriceConfig(
+    id: string,
+    config: PRRTargetPriceConfig
+  ) {
+    const ui = useStockUIStore()
+    ui.loading = true
+    ui.error = null
+    try {
+      const stock = await stockDB.get(id)
+      if (!stock) {
+        throw new Error('股票不存在')
+      }
+      const updatedStock: StockData = {
+        ...stock,
+        prrTargetPriceConfig: {
+          enabled: config.enabled,
+          formulaType: config.formulaType,
+          targetPR: config.targetPR
+        },
+        targetPriceMethod: 'prr',
+        updatedAt: Date.now()
+      }
+      await stockDB.put(updatedStock)
+      await loadStocks()
+    } catch (err) {
+      ui.error = err instanceof Error ? err.message : '更新PRR目标价配置失败'
+      throw err
+    } finally {
+      ui.loading = false
+    }
+  }
+
   function getTargetPrice(id: string) {
     const stock = stocks.value.find(s => s.id === id)
     if (!stock) {
       return { price: null as number | null, error: null }
     }
 
+    const method = stock.targetPriceMethod ?? 'traditional'
+
+    if (method === 'prr') {
+      const prrConfig = stock.prrTargetPriceConfig
+      if (prrConfig && prrConfig.enabled) {
+        return calculatePRRTargetPrice({
+          targetPR: prrConfig.targetPR,
+          roe: stock.roe ?? null,
+          netProfit: stock.netProfit ?? null,
+          totalShares: stock.totalShares
+        })
+      }
+      return { price: null as number | null, error: null }
+    }
+
+    // Traditional target price
     const config = stock.targetPriceConfig
     if (!config || !config.enabled) {
       return { price: null as number | null, error: null }
@@ -325,7 +464,9 @@ export const useStockListStore = defineStore('stockList', () => {
     getStockById,
     updateStock,
     recalculateStock,
+    updatePrrFormula,
     updateTargetPriceConfig,
+    updatePrrTargetPriceConfig,
     getTargetPrice,
     resetTargetPriceConfig,
     updateTotalShares,

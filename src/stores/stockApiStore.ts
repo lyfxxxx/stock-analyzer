@@ -4,13 +4,15 @@ import { fetchEastMoneyStockInfo, testEastMoneyAPI, searchStocksByName } from '@
 import { testTencentAPI, fetchTencentHKFinancialReport } from '@/api/tencent'
 import { fetchAStockFinancialReport } from '@/api/financialReportA'
 import { fetchHKStockFinancialReport } from '@/api/financialReportHK'
-import { fetchExchangeRates } from '@/api/exchangeRate'
-import { calculateNetCash, calculateFreeCashFlow, calculateValuations, calculatePERatio } from '@/utils/calculator'
+import { calculateNetCash, calculateFreeCashFlow, calculateValuations, calculatePERatio, getReportType, getSimpleMultiplier } from '@/utils/calculator'
 import { buildYearlyData } from '@/utils/excelParser'
 import { logger } from '@/utils/logger'
 import { useStockUIStore } from './stockUIStore'
 import { useStockListStore } from './stockListStore'
 import { stockDB } from '@/db'
+import { fetchAllIndicatorsA } from '@/api/financialIndicatorsA'
+import { fetchHKFinancialIndicators } from '@/api/financialIndicatorsHK'
+import { calculateAllPRR, calculateWeightedAverageROE, type PRRInputs } from '@/utils/prr-calculator'
 
 export const useStockApiStore = defineStore('stockApi', () => {
   async function testAPIs() {
@@ -56,22 +58,22 @@ export const useStockApiStore = defineStore('stockApi', () => {
     }
   }
 
-  async function fetchFinancialReport(code: string, market: 'HK' | 'A', marketCap: number) {
+  async function fetchFinancialReport(code: string, market: 'HK' | 'A', marketCap: number, pbFromStockInfo?: number | null) {
     const ui = useStockUIStore()
     ui.loading = true
     ui.error = null
 
     try {
       let reportResult
-      
+
       if (market === 'HK') {
         // 优先使用东方财富，失败则使用腾讯
         const eastMoneyResult = await fetchHKStockFinancialReport(code)
-        
+
         if (eastMoneyResult.error || !eastMoneyResult.data) {
           logger.warn('stockApiStore', '东方财富港股API失败，尝试腾讯API')
           const tencentResult = await fetchTencentHKFinancialReport(code)
-          
+
           if (tencentResult.error || !tencentResult.data) {
             throw new Error(tencentResult.error?.message || '获取财报数据失败')
           }
@@ -125,6 +127,193 @@ export const useStockApiStore = defineStore('stockApi', () => {
         financialData.peRatioProjected
       )
 
+      // ============================================
+      // Fetch PRR indicators based on market type
+      // ============================================
+      let prrIndicators: {
+        roe: number | null
+        roa: number | null
+        roeProjected: boolean
+        roaProjected: boolean
+        pb: number | null
+        dividendPayoutRatio: number | null
+        dividendHistory: { year: number; dividendPayoutRatio: number | null }[]
+        yearlyIndicators: { year: number; roe: number | null; roa: number | null; dividendPayoutRatio: number | null }[]
+      } = {
+        roe: null,
+        roa: null,
+        roeProjected: false,
+        roaProjected: false,
+        pb: null,
+        dividendPayoutRatio: null,
+        dividendHistory: [],
+        yearlyIndicators: []
+      }
+
+      try {
+        if (market === 'A') {
+          const indicatorResult = await fetchAllIndicatorsA(code, pbFromStockInfo)
+          // Get current (latest) values with projection for non-annual reports
+          const latestRoeData = indicatorResult.roeData[0]
+          const latestRoaData = indicatorResult.roaData[0]
+
+          if (latestRoeData && latestRoeData.roe !== null) {
+            const reportType = getReportType(latestRoeData.reportDate)
+            if (reportType !== 'annual') {
+              prrIndicators.roe = latestRoeData.roe * getSimpleMultiplier(reportType)
+              prrIndicators.roeProjected = true
+            } else {
+              prrIndicators.roe = latestRoeData.roe
+              prrIndicators.roeProjected = false
+            }
+          }
+
+          if (latestRoaData && latestRoaData.roa !== null) {
+            const reportType = getReportType(latestRoaData.reportDate)
+            if (reportType !== 'annual') {
+              prrIndicators.roa = latestRoaData.roa * getSimpleMultiplier(reportType)
+              prrIndicators.roaProjected = true
+            } else {
+              prrIndicators.roa = latestRoaData.roa
+              prrIndicators.roaProjected = false
+            }
+          }
+
+          prrIndicators.pb = indicatorResult.pb
+          prrIndicators.dividendPayoutRatio = indicatorResult.dividendPayoutRatio
+          prrIndicators.dividendHistory = indicatorResult.dividendHistory
+
+          // Build yearly indicators from Dupont data
+          if (indicatorResult.roeData.length > 0) {
+            prrIndicators.yearlyIndicators = indicatorResult.roeData
+              .map(d => ({
+                year: new Date(d.reportDate).getFullYear(),
+                roe: d.roe,
+                roa: d.roa,
+                dividendPayoutRatio: null as number | null
+              }))
+              .filter(d => d.roe !== null)
+          }
+        } else {
+          // HK market
+          const indicatorResult = await fetchHKFinancialIndicators(code)
+          const latestRoe = indicatorResult.current.roe
+          const latestRoa = indicatorResult.current.roa
+          const reportDate = indicatorResult.current.reportDate
+
+          if (latestRoe !== null) {
+            const reportType = getReportType(reportDate)
+            if (reportType !== 'annual') {
+              prrIndicators.roe = latestRoe * getSimpleMultiplier(reportType)
+              prrIndicators.roeProjected = true
+            } else {
+              prrIndicators.roe = latestRoe
+              prrIndicators.roeProjected = false
+            }
+          }
+
+          if (latestRoa !== null) {
+            const reportType = getReportType(reportDate)
+            if (reportType !== 'annual') {
+              prrIndicators.roa = latestRoa * getSimpleMultiplier(reportType)
+              prrIndicators.roaProjected = true
+            } else {
+              prrIndicators.roa = latestRoa
+              prrIndicators.roaProjected = false
+            }
+          }
+
+          prrIndicators.pb = indicatorResult.current.pb
+          prrIndicators.dividendPayoutRatio = indicatorResult.current.dividendPayoutRatio
+          prrIndicators.yearlyIndicators = indicatorResult.yearlyData.map(d => ({
+            year: d.year,
+            roe: d.roe,
+            roa: d.roa,
+            dividendPayoutRatio: d.dividendPayoutRatio
+          }))
+        }
+
+        logger.debug('stockApiStore', `PRR indicators fetched: roe=${prrIndicators.roe}, roa=${prrIndicators.roa}, pb=${prrIndicators.pb}, dividend=${prrIndicators.dividendPayoutRatio}`)
+      } catch (indicatorError) {
+        logger.warn('stockApiStore', 'Failed to fetch PRR indicators:', indicatorError)
+        // Continue without indicators - they're optional
+      }
+
+      // ============================================
+      // Calculate PRR values
+      // ============================================
+      let prrBase: number | null = null
+      let prrAdjusted: number | null = null
+      let prrCycle: number | null = null
+      let prrIndex: number | null = null
+      let prrDerived: number | null = null
+
+      if (prrIndicators.roe !== null && peRatio !== null) {
+        // Calculate weighted average ROE for cycle PRR
+        const validYearlyRoes = prrIndicators.yearlyIndicators
+          .filter(d => d.roe !== null && d.roe > 0)
+          .map(d => ({ year: d.year, roe: d.roe! }))
+        const weightedAvgRoe = calculateWeightedAverageROE(validYearlyRoes.length >= 3 ? validYearlyRoes : null)
+
+        const prrInputs: PRRInputs = {
+          peRatio,
+          roe: prrIndicators.roe,
+          pbRatio: prrIndicators.pb ?? undefined,
+          dividendPayoutRatio: prrIndicators.dividendPayoutRatio != null
+            ? prrIndicators.dividendPayoutRatio * 100
+            : undefined,
+          roa: prrIndicators.roa ?? undefined,
+        }
+
+        const marketType = market === 'A' ? 'A' : 'H'
+        const prrResult = calculateAllPRR(prrInputs, marketType)
+
+        prrBase = prrResult.basePR
+        prrAdjusted = prrResult.adjustedPR ?? null
+        prrDerived = prrResult.derivedPR ?? null
+
+        // Cycle PRR uses weighted average ROE if available, otherwise current ROE
+        if (prrIndicators.pb !== null) {
+          if (weightedAvgRoe !== null && weightedAvgRoe > 0) {
+            // Use weighted average ROE for cycle PRR
+            const cyclePRR = (prrIndicators.pb * 100) / (weightedAvgRoe * weightedAvgRoe)
+            prrCycle = cyclePRR
+          } else if (prrIndicators.roe > 0) {
+            // Fallback to current ROE
+            const cyclePRR = (prrIndicators.pb * 100) / (prrIndicators.roe * prrIndicators.roe)
+            prrCycle = cyclePRR
+          }
+        }
+
+        // Index PRR
+        if (peRatio !== null && prrIndicators.pb !== null) {
+          prrIndex = (peRatio * peRatio) / prrIndicators.pb / 100
+        }
+      }
+
+      // ============================================
+      // Merge PRR yearly data into yearlyData
+      // ============================================
+      const yearlyDataWithPRR = yearlyData.map(yData => {
+        const matchingIndicator = prrIndicators.yearlyIndicators.find(
+          ind => ind.year === yData.year
+        )
+        // For A-shares: use dividendHistory for per-year matching
+        // For HK: yearlyIndicators already contains dividendPayoutRatio
+        const matchingDividend = market === 'A'
+          ? prrIndicators.dividendHistory.find(d => d.year === yData.year)
+          : null
+        const yearlyDividend = matchingIndicator?.dividendPayoutRatio
+          ?? matchingDividend?.dividendPayoutRatio
+          ?? undefined
+        return {
+          ...yData,
+          roe: matchingIndicator?.roe ?? undefined,
+          roa: matchingIndicator?.roa ?? undefined,
+          dividendPayoutRatio: yearlyDividend,
+        }
+      })
+
       return {
         netCash,
         freeCashFlow,
@@ -133,7 +322,7 @@ export const useStockApiStore = defineStore('stockApi', () => {
         peRatio,
         valuation1,
         valuation2,
-        yearlyData,
+        yearlyData: yearlyDataWithPRR,
         baseCurrency: financialData.baseCurrency,
         source: 'api' as const,
         isUsingProjectedData: latestNetProfitProjected || latestFreeCashFlowProjected || latestNetCashProjected,
@@ -143,6 +332,19 @@ export const useStockApiStore = defineStore('stockApi', () => {
         currentRatioProjected: financialData.currentRatioProjected[0] ?? false,
         peRatioProjected: financialData.peRatioProjected[0] ?? false,
         marketCap,
+        // PRR fields
+        roe: prrIndicators.roe,
+        roa: prrIndicators.roa,
+        roeProjected: prrIndicators.roeProjected,
+        roaProjected: prrIndicators.roaProjected,
+        pbRatio: prrIndicators.pb,
+        dividendPayoutRatio: prrIndicators.dividendPayoutRatio,
+        prrBase,
+        prrAdjusted,
+        prrCycle,
+        prrIndex,
+        prrDerived,
+        prrSelectedFormula: 'base' as const,
       }
     } catch (err) {
       ui.error = err instanceof Error ? err.message : '获取财报数据失败'
@@ -208,8 +410,8 @@ export const useStockApiStore = defineStore('stockApi', () => {
         throw new Error('获取市值失败')
       }
 
-      // 2. 获取最新财报数据并计算估值
-      const financialResult = await fetchFinancialReport(stock.code, stock.market, info.marketCap)
+      // 2. 获取最新财报数据并计算估值（传入已获取的PB，避免重复请求push2接口）
+      const financialResult = await fetchFinancialReport(stock.code, stock.market, info.marketCap, info.pbRatio)
 
       // 3. 保存完整的股票数据（包含新市值和新估值）
       // 注意：市值已经在 fetchFinancialReport 中转换为 HKD（如果是港股）
@@ -240,7 +442,20 @@ export const useStockApiStore = defineStore('stockApi', () => {
             valuationType: 1 as const,
             targetValuation: 10
           } as TargetPriceConfig
-        })
+        }),
+        // PRR fields
+        roe: financialResult.roe,
+        roa: financialResult.roa,
+        roeProjected: financialResult.roeProjected,
+        roaProjected: financialResult.roaProjected,
+        pbRatio: financialResult.pbRatio,
+        dividendPayoutRatio: financialResult.dividendPayoutRatio,
+        prrBase: financialResult.prrBase,
+        prrAdjusted: financialResult.prrAdjusted,
+        prrCycle: financialResult.prrCycle,
+        prrIndex: financialResult.prrIndex,
+        prrDerived: financialResult.prrDerived,
+        prrSelectedFormula: financialResult.prrSelectedFormula ?? 'base',
       }
       await stockDB.put(updatedStock)
 

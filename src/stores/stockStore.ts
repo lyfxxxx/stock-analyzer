@@ -36,6 +36,8 @@ export function useStockStore() {
     updateStock: list.updateStock,
     recalculateStock: list.recalculateStock,
     updateTargetPriceConfig: list.updateTargetPriceConfig,
+    updatePrrTargetPriceConfig: list.updatePrrTargetPriceConfig,
+    updatePrrFormula: list.updatePrrFormula,
     getTargetPrice: list.getTargetPrice,
     resetTargetPriceConfig: list.resetTargetPriceConfig,
     updateTotalShares: list.updateTotalShares,

@@ -1,32 +1,32 @@
-# Vue 3 + Pinia Reference
+# Vue 3 + Pinia 参考手册
 
 ## Vue 3 Composition API
 
-### Core Reactivity
+### 核心响应式
 ```typescript
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 
-// ref - for primitive values
+// ref - 用于基本类型值
 const count = ref(0)
 count.value++
 
-// reactive - for objects
-const state = reactive({ name: 'Stock Analyzer', version: '1.0' })
+// reactive - 用于对象
+const state = reactive({ name: '股票分析器', version: '1.0' })
 
-// computed - derived state
+// computed - 派生状态
 const doubled = computed(() => count.value * 2)
 
-// watch - side effects
+// watch - 副作用监听
 watch(count, (newVal, oldVal) => {
-  console.log(`Count changed from ${oldVal} to ${newVal}`)
+  console.log(`计数从 ${oldVal} 变为 ${newVal}`)
 })
 
-// Lifecycle
-onMounted(() => { /* DOM ready */ })
-onUnmounted(() => { /* cleanup */ })
+// 生命周期
+onMounted(() => { /* DOM 就绪 */ })
+onUnmounted(() => { /* 清理 */ })
 ```
 
-### `<script setup>` Syntax
+### `<script setup>` 语法
 ```vue
 <script setup lang="ts">
 // Props
@@ -49,32 +49,32 @@ const slots = defineSlots<{
 </script>
 ```
 
-## Pinia Store Patterns
+## Pinia Store 模式
 
-### Setup Store (Composition API style)
+### Setup Store（Composition API 风格）
 ```typescript
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 export const useStockStore = defineStore('stock', () => {
-  // State
+  // 状态
   const stocks = ref<StockData[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  // Getters
+  // 计算属性
   const sortedStocks = computed(() => 
     [...stocks.value].sort((a, b) => b.updatedAt - a.updatedAt)
   )
 
-  // Actions
+  // 操作
   async function loadStocks() {
     loading.value = true
     error.value = null
     try {
       stocks.value = await fetchFromDB()
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Unknown error'
+      error.value = err instanceof Error ? err.message : '未知错误'
     } finally {
       loading.value = false
     }
@@ -87,31 +87,31 @@ export const useStockStore = defineStore('stock', () => {
 })
 ```
 
-### Store Usage in Components
+### 组件中使用 Store
 ```vue
 <script setup lang="ts">
 import { useStockStore } from '@/stores/stockStore'
 
 const stockStore = useStockStore()
 
-// Access state
+// 访问状态
 console.log(stockStore.stocks)
 
-// Call actions
+// 调用操作
 await stockStore.loadStocks()
 </script>
 ```
 
-### Store Best Practices
-1. **One store per domain** - Don't create god stores
-2. **No cross-store imports** - Each store is independent
-3. **Actions handle async** - Keep components clean
-4. **Loading/error state** - Every async action should manage these
-5. **Return everything** - All state, getters, actions must be in return object
+### Store 最佳实践
+1. **一个领域一个 Store** - 不要创建上帝 Store
+2. **禁止跨 Store 导入** - 每个 Store 独立
+3. **操作处理异步** - 保持组件简洁
+4. **加载/错误状态** - 每个异步操作都应管理这些状态
+5. **全部返回** - 所有状态、计算属性、操作必须放在 return 对象中
 
-## TypeScript with Vue
+## Vue 中的 TypeScript
 
-### Typing Props
+### Props 类型
 ```typescript
 interface StockCardProps {
   stock: StockData
@@ -125,7 +125,7 @@ const props = withDefaults(defineProps<StockCardProps>(), {
 })
 ```
 
-### Typing Emits
+### Emits 类型
 ```typescript
 const emit = defineEmits<{
   (e: 'select', stock: StockData): void
@@ -134,7 +134,7 @@ const emit = defineEmits<{
 }>()
 ```
 
-### Typing Refs
+### Ref 类型
 ```typescript
 const chartRef = ref<HTMLElement | null>(null)
 const stocks = ref<StockData[]>([])

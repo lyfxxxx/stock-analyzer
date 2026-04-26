@@ -1,49 +1,50 @@
-# AGENTS.md - Stock Analyzer
+# AGENTS.md - 股票分析器
 
-> Table of contents for AI agents. Follow links for deep documentation.
+> AI Agent 目录索引。深入文档请查看链接。
 
-## Project
-- **Stack**: Vue 3.5 + TypeScript 5.9 + Vite 7.3 + Pinia 3.0 + ECharts 6.0
-- **Domain**: Stock valuation tool for HK stocks and A-shares
-- **Data Sources**: East Money API (financial data), open.er-api.com (exchange rates)
+## 项目概况
+- **技术栈**: Vue 3.5 + TypeScript 5.9 + Vite 7.3 + Pinia 3.0 + ECharts 6.0
+- **领域**: 港股与 A 股股票估值分析工具
+- **数据源**: 东方财富 API（财务数据）、open.er-api.com（汇率）
 
-## Quick Start
+## 快速开始
 ```bash
-npm run dev          # Dev server (port 5173)
-npm run build        # Build with type checking
-npm run test         # Run Vitest tests
-npm run test:e2e     # Run Playwright E2E tests
-npm run lint         # Run ESLint
-npm run lint:fix     # Auto-fix ESLint issues
+npm run dev          # 开发服务器（端口 5173）
+npm run build        # 构建（含类型检查）
+npm run test         # 运行 Vitest 测试
+npm run test:e2e     # 运行 Playwright E2E 测试
+npm run lint         # 运行 ESLint
+npm run lint:fix     # 自动修复 ESLint 问题
 ```
 
-## Code Conventions
-- **Files**: kebab-case (`stock-card.vue`, `eastmoney.ts`)
-- **Components**: PascalCase (`StockCard.vue`)
-- **Types**: PascalCase (`StockData`, `ApiStockInfo`)
-- **Functions**: camelCase (`calculateNetCash`)
-- **Import Order**: External → `@/` absolute → Relative
-- **API**: Composition API with `<script setup lang="ts">`
-- **Currency**: All values in 亿元 (hundred million yuan), HKD base
+## 代码规范
+- **文件名**: kebab-case（`stock-card.vue`、`eastmoney.ts`）
+- **组件名**: PascalCase（`StockCard.vue`）
+- **类型名**: PascalCase（`StockData`、`ApiStockInfo`）
+- **函数名**: camelCase（`calculateNetCash`）
+- **导入顺序**: 外部库 → `@/` 绝对路径 → 相对路径
+- **API 风格**: Composition API + `<script setup lang="ts">`
+- **货币单位**: 所有值以 亿元 为单位，港币为基准
 
-## Architecture
-- [Domain Map & Dependency Directions](docs/ARCHITECTURE.md)
-- [Data Flow & API Contracts](docs/design-docs/)
+## 架构
+- [领域地图与依赖方向](docs/ARCHITECTURE.md)
+- [数据流与 API 契约](docs/design-docs/)
 
-## Frontend
-- [Vue Conventions & Patterns](docs/FRONTEND.md)
+## 前端
+- [Vue 规范与模式](docs/FRONTEND.md)
 
-## References
+## 参考资料
 - [Vue + Pinia](docs/references/vue-pinia-reference.md)
 - [Vite + ECharts](docs/references/vite-echarts-reference.md)
 
-## Key Paths
-- Source: `src/` | Types: `src/types/` | Stores: `src/stores/`
-- API: `src/api/` | Utils: `src/utils/` | Tests: `src/**/__tests__/`
+## 关键路径
+- 源码: `src/` | 类型: `src/types/` | 状态管理: `src/stores/`
+- API: `src/api/` | 工具: `src/utils/` | 测试: `src/**/__tests__/`
 
-## Critical Rules
-1. **No `console.log`** - Use `src/utils/logger.ts` structured logger
-2. **Validate at boundaries** - Zod schemas in `src/validation/`
-3. **No cross-store imports** - Each store is independent
-4. **Dependency direction** - Views → Stores → API/Utils/DB (never reverse)
-5. **Rate limit all API calls** - Use `financialReportRateLimiter`
+## 关键规则
+1. **禁止 `console.log`** - 使用 `src/utils/logger.ts` 结构化日志
+2. **边界验证** - 使用 `src/validation/` 中的 Zod 模式
+3. **禁止跨 Store 导入** - 每个 Store 独立
+4. **依赖方向** - Views → Stores → API/Utils/DB（不可反向）
+5. **所有 API 调用需限流** - 使用 `financialReportRateLimiter`
+6. **需要实际验证** 完成修改后请使用playwright mcp或者devtools mcp回测实际场景

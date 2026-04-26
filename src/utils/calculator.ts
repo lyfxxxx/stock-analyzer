@@ -191,6 +191,25 @@ export function formatCurrency(num: number): string {
 }
 
 /**
+ * Convert a stored dividend payout ratio value to display percentage.
+ * A-shares API returns decimal (e.g., 0.50 = 50%), while HK API may return
+ * percentage number (e.g., 1.95 = 1.95%). This normalizes both to percentage.
+ */
+export function toDisplayPercentage(value: number | null): number | null {
+  if (value === null || value === undefined || isNaN(value)) return null
+  return value > 1 ? value : value * 100
+}
+
+/**
+ * Format dividend payout ratio for display.
+ */
+export function formatDividendPayoutRatio(value: number | null, decimals: number = 2): string {
+  const displayValue = toDisplayPercentage(value)
+  if (displayValue === null) return '-'
+  return `${displayValue.toFixed(decimals)}%`
+}
+
+/**
  * Get report type from report date string
  */
 export function getReportType(reportDate: string): ReportType {

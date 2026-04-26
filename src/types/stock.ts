@@ -1,3 +1,5 @@
+import type { PRRFormulaType, PRRTargetPriceConfig } from './prr'
+
 export type CurrencyType = 'USD' | 'HKD' | 'CNY' | 'OTHER'
 
 export interface TargetPriceConfig {
@@ -32,6 +34,21 @@ export interface StockData {
   peRatioProjected?: boolean
   totalShares: number | null
   targetPriceConfig: TargetPriceConfig | null
+  // PRR valuation fields
+  roe?: number | null
+  roa?: number | null
+  roeProjected?: boolean
+  roaProjected?: boolean
+  pbRatio?: number | null
+  dividendPayoutRatio?: number | null
+  prrBase?: number | null
+  prrAdjusted?: number | null
+  prrCycle?: number | null
+  prrIndex?: number | null
+  prrDerived?: number | null
+  prrSelectedFormula?: PRRFormulaType
+  prrTargetPriceConfig?: PRRTargetPriceConfig | null
+  targetPriceMethod?: 'traditional' | 'prr'
 }
 
 export interface YearlyData {
@@ -46,6 +63,10 @@ export interface YearlyData {
   currentRatioProjected?: boolean
   peRatio?: number | null
   peRatioProjected?: boolean
+  // PRR yearly fields
+  roe?: number | null
+  roa?: number | null
+  dividendPayoutRatio?: number | null
 }
 
 export interface StockAnalysisResult {
@@ -72,6 +93,21 @@ export interface StockAnalysisResult {
   peRatioProjected?: boolean
   totalShares: number | null
   targetPriceConfig: TargetPriceConfig | null
+  // PRR valuation fields
+  roe?: number | null
+  roa?: number | null
+  roeProjected?: boolean
+  roaProjected?: boolean
+  pbRatio?: number | null
+  dividendPayoutRatio?: number | null
+  prrBase?: number | null
+  prrAdjusted?: number | null
+  prrCycle?: number | null
+  prrIndex?: number | null
+  prrDerived?: number | null
+  prrSelectedFormula?: PRRFormulaType
+  prrTargetPriceConfig?: PRRTargetPriceConfig | null
+  targetPriceMethod?: 'traditional' | 'prr'
 }
 
 export interface ExcelData {
@@ -89,6 +125,7 @@ export interface ApiStockInfo {
   market: 'HK' | 'A'
   marketCap: number
   totalShares: number | null
+  pbRatio: number | null
 }
 
 export interface StockSearchResult extends ApiStockInfo {

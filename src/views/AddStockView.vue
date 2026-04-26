@@ -373,6 +373,59 @@
               </span>
               <span class="val-value">{{ previewData.valuation2.toFixed(2) }}</span>
             </div>
+            <!-- PRR Card -->
+            <div v-if="previewData.prrBase !== null || previewData.prrAdjusted !== null || previewData.prrCycle !== null || previewData.prrIndex !== null || previewData.prrDerived !== null" class="valuation-card prr-card" data-testid="add-stock-prr-card">
+              <span class="val-label">
+                市赚率 (PRR)
+                <span class="info-trigger">ⓘ
+                  <span class="info-text">{{ getPrrFormulaDescription(previewData.prrSelectedFormula || 'base') }}：{{ getPrrFormulaText(previewData.prrSelectedFormula || 'base') }}</span>
+                </span>
+              </span>
+              <span class="val-value prr-value" :class="getPrrDisplayClass(previewData.prrSelectedFormula || 'base')">
+                {{ getPrrDisplayValue(previewData.prrSelectedFormula || 'base') }}
+              </span>
+              <span class="prr-formula-text">{{ getPrrFormulaText(previewData.prrSelectedFormula || 'base') }}</span>
+            </div>
+            <!-- ROE Card -->
+            <div v-if="previewData.roe != null" class="valuation-card metric-card">
+              <span class="val-label">
+                ROE
+                <span class="info-trigger">ⓘ
+                  <span class="info-text">净资产收益率 = 净利润 / 股东权益 × 100%</span>
+                </span>
+              </span>
+              <span class="val-value">{{ previewData.roe.toFixed(2) }}%</span>
+            </div>
+            <!-- ROA Card -->
+            <div v-if="previewData.roa != null" class="valuation-card metric-card">
+              <span class="val-label">
+                ROA
+                <span class="info-trigger">ⓘ
+                  <span class="info-text">资产收益率 = 净利润 / 总资产 × 100%</span>
+                </span>
+              </span>
+              <span class="val-value">{{ previewData.roa.toFixed(2) }}%</span>
+            </div>
+            <!-- PB Card -->
+            <div v-if="previewData.pbRatio != null" class="valuation-card metric-card">
+              <span class="val-label">
+                PB
+                <span class="info-trigger">ⓘ
+                  <span class="info-text">市净率 = 市值 / 账面价值</span>
+                </span>
+              </span>
+              <span class="val-value">{{ previewData.pbRatio.toFixed(2) }}x</span>
+            </div>
+            <!-- 股息支付率 Card -->
+            <div v-if="previewData.dividendPayoutRatio != null" class="valuation-card metric-card">
+              <span class="val-label">
+                股息支付率
+                <span class="info-trigger">ⓘ
+                  <span class="info-text">股息支付率 = 股息 / 净利润 × 100%</span>
+                </span>
+              </span>
+              <span class="val-value">{{ (previewData.dividendPayoutRatio > 1 ? previewData.dividendPayoutRatio : previewData.dividendPayoutRatio * 100).toFixed(1) }}%</span>
+            </div>
           </div>
 
           <div class="charts-grid">
@@ -417,7 +470,9 @@ import { useStockStore } from '@/stores/stockStore'
 import { useExcelParser, useValuation } from '@/composables/useExcelParser'
 import { validateStockCode } from '@/utils/validator'
 import { fetchExchangeRates } from '@/api/exchangeRate'
+import { formatPRR, getPrrValuationBgClass, getPrrFormulaText, getPrrFormulaDescription } from '@/utils/prr-formatter'
 import type { ExcelData, StockAnalysisResult, CurrencyType } from '@/types/stock'
+import type { PRRFormulaType } from '@/types/prr'
 import ExcelUploader from '@/components/ExcelUploader.vue'
 import ValuationChart from '@/components/ValuationChart.vue'
 
@@ -524,7 +579,18 @@ onMounted(async () => {
         baseCurrency: stock.baseCurrency,
         isUsingProjectedData: stock.isUsingProjectedData || false,
         totalShares: null,
-        targetPriceConfig: null
+        targetPriceConfig: null,
+        // PRR fields
+        roe: stock.roe ?? null,
+        roa: stock.roa ?? null,
+        pbRatio: stock.pbRatio ?? null,
+        dividendPayoutRatio: stock.dividendPayoutRatio ?? null,
+        prrBase: stock.prrBase ?? null,
+        prrAdjusted: stock.prrAdjusted ?? null,
+        prrCycle: stock.prrCycle ?? null,
+        prrIndex: stock.prrIndex ?? null,
+        prrDerived: stock.prrDerived ?? null,
+        prrSelectedFormula: (stock.prrSelectedFormula ?? 'base') as PRRFormulaType,
       }
     }
   }
@@ -765,7 +831,18 @@ async function fetchFinancialData() {
         currentRatioProjected: reportData.currentRatioProjected ?? false,
         peRatioProjected: reportData.peRatioProjected ?? false,
         totalShares: null,
-        targetPriceConfig: null
+        targetPriceConfig: null,
+        // PRR fields
+        roe: reportData.roe ?? null,
+        roa: reportData.roa ?? null,
+        pbRatio: reportData.pbRatio ?? null,
+        dividendPayoutRatio: reportData.dividendPayoutRatio ?? null,
+        prrBase: reportData.prrBase ?? null,
+        prrAdjusted: reportData.prrAdjusted ?? null,
+        prrCycle: reportData.prrCycle ?? null,
+        prrIndex: reportData.prrIndex ?? null,
+        prrDerived: reportData.prrDerived ?? null,
+        prrSelectedFormula: (reportData.prrSelectedFormula ?? 'base') as PRRFormulaType,
       }
       displayCurrency.value = reportData.baseCurrency
       // 成功获取数据后，退出编辑模式并更新保存的状态
@@ -965,6 +1042,69 @@ function goBack() {
 function formatCurrency(value: number | undefined): string {
   if (value === undefined || isNaN(value)) return '-'
   return `${value.toFixed(2)} 亿元`
+}
+
+// PRR display helper functions
+function getPrrDisplayValue(formulaType: PRRFormulaType): string {
+  if (!previewData.value) return '-'
+  switch (formulaType) {
+    case 'base':
+      return formatPRR(previewData.value.prrBase ?? null)
+    case 'adjusted':
+      return formatPRR(previewData.value.prrAdjusted ?? null)
+    case 'cycle':
+      return formatPRR(previewData.value.prrCycle ?? null)
+    case 'index':
+      return formatPRR(previewData.value.prrIndex ?? null)
+    case 'derived':
+      return formatPRR(previewData.value.prrDerived ?? null)
+    default:
+      return '-'
+  }
+}
+
+function getPrrDisplayClass(formulaType: PRRFormulaType): string {
+  if (!previewData.value) return ''
+  const prrValue = getPrrRawValue(formulaType)
+  if (prrValue === null) return ''
+  const market = previewData.value.market === 'A' ? 'A' : 'H'
+  const level = getPrrValuationLevel(prrValue, market)
+  return getPrrValuationBgClass(level)
+}
+
+function getPrrRawValue(formulaType: PRRFormulaType): number | null {
+  if (!previewData.value) return null
+  switch (formulaType) {
+    case 'base':
+      return previewData.value.prrBase ?? null
+    case 'adjusted':
+      return previewData.value.prrAdjusted ?? null
+    case 'cycle':
+      return previewData.value.prrCycle ?? null
+    case 'index':
+      return previewData.value.prrIndex ?? null
+    case 'derived':
+      return previewData.value.prrDerived ?? null
+    default:
+      return null
+  }
+}
+
+function getPrrValuationLevel(prr: number | null, market: 'A' | 'H' | 'US'): 'low' | 'medium' | 'high' | 'unknown' {
+  if (prr == null || isNaN(prr)) return 'unknown'
+  switch (market) {
+    case 'A':
+    case 'US':
+      if (prr < 0.6) return 'low'
+      if (prr <= 1.0) return 'medium'
+      return 'high'
+    case 'H':
+      if (prr < 0.6) return 'low'
+      if (prr <= 0.8) return 'medium'
+      return 'high'
+    default:
+      return 'unknown'
+  }
 }
 </script>
 
@@ -1627,6 +1767,85 @@ function formatCurrency(value: number | undefined): string {
 .tooltip-trigger:hover .tooltip-text {
   visibility: visible;
   opacity: 1;
+}
+
+/* PRR Card styles */
+.valuation-card.prr-card {
+  border-color: var(--primary-color);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.valuation-card.prr-card .prr-value {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 22px;
+}
+
+.valuation-card.prr-card .prr-formula-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Metric Card styles */
+.valuation-card.metric-card {
+  border-color: var(--border-color);
+}
+
+.valuation-card.metric-card .val-value {
+  font-size: 18px;
+}
+
+/* PRR valuation color classes */
+.val-low {
+  color: var(--val-low) !important;
+  background-color: var(--val-low-bg);
+}
+
+.val-medium {
+  color: var(--val-medium) !important;
+  background-color: var(--val-medium-bg);
+}
+
+.val-high {
+  color: var(--val-high) !important;
+  background-color: var(--val-high-bg);
+}
+
+.val-na {
+  color: var(--text-muted) !important;
+}
+
+/* Info trigger and info text */
+.info-trigger {
+  position: relative;
+  cursor: help;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+.info-text {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: normal;
+  white-space: nowrap;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  z-index: 10;
+}
+
+.info-trigger:hover .info-text {
+  display: block;
 }
 
 .projected-badge {

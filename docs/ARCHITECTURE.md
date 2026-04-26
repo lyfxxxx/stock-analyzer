@@ -1,106 +1,106 @@
-# Architecture - Stock Analyzer
+# 架构文档 - 股票分析器
 
-## Domain Map
+## 领域地图
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                     Views (UI Layer)                     │
+│                     视图层（UI Layer）                    │
 │  HomeView  │  AddStockView  │  StockDetailView           │
 └──────────────────────┬──────────────────────────────────┘
                        │
 ┌──────────────────────▼──────────────────────────────────┐
-│                   Components (Reusable)                   │
+│                   组件层（可复用组件）                     │
 │  StockCard  │  ValuationChart  │  ExcelUploader          │
 └──────────────────────┬──────────────────────────────────┘
                        │
 ┌──────────────────────▼──────────────────────────────────┐
-│              Stores (State Management - Pinia)            │
+│              状态管理层（Pinia Stores）                    │
 │  stockListStore  │  stockApiStore  │  stockUIStore       │
 └──────┬───────────────────┬──────────────────┬────────────┘
        │                   │                  │
 ┌──────▼──────┐   ┌────────▼────────┐  ┌──────▼──────┐
-│     DB      │   │     API         │  │    Utils    │
-│  IndexedDB  │   │  East Money     │  │ Calculator  │
-│  (stocks)   │   │  Exchange Rate  │  │ Validator   │
-│             │   │  Financial Rpt  │  │ Logger      │
+│   数据库层   │   │   API 层        │  │  工具层     │
+│  IndexedDB  │   │  东方财富 API    │  │ 计算器      │
+│  (股票数据)  │   │  汇率 API       │  │ 验证器      │
+│             │   │  财报 API       │  │ 日志器      │
 └─────────────┘   └─────────────────┘  └─────────────┘
 ```
 
-## Dependency Directions (ENFORCED)
+## 依赖方向（强制执行）
 
 ```
 Views → Components → Stores → API/Utils/DB
-                          → Types (always allowed)
+                           → Types（始终允许）
 ```
 
-### Allowed Dependencies
-| From | Can Import From |
+### 允许的依赖关系
+| 从 | 可导入 |
 |------|----------------|
-| Views | Components, Stores, Types |
-| Components | Other Components, Stores, Types, Utils |
-| Stores | API, Utils, DB, Types |
-| API | Utils, Types |
-| Utils | Types only |
-| DB | Types only |
+| 视图（Views） | 组件、Store、类型 |
+| 组件（Components） | 其他组件、Store、类型、工具 |
+| Store | API、工具、数据库、类型 |
+| API | 工具、类型 |
+| 工具（Utils） | 仅类型 |
+| 数据库（DB） | 仅类型 |
 
-### Forbidden Dependencies
-| From | Cannot Import From |
+### 禁止的依赖关系
+| 从 | 不可导入 |
 |------|-------------------|
-| Utils | Stores, API, Views, Components |
-| DB | Stores, API, Views, Components |
-| API | Stores, Views, Components |
-| Stores | Other Stores (no cross-store) |
-| Views | API directly (must go through stores) |
+| 工具（Utils） | Store、API、视图、组件 |
+| 数据库（DB） | Store、API、视图、组件 |
+| API | Store、视图、组件 |
+| Store | 其他 Store（禁止跨 Store） |
+| 视图（Views） | 直接导入 API（必须通过 Store） |
 
-## Package Hierarchy
+## 包层级结构
 
 ```
 src/
-├── types/              # TypeScript types (no dependencies)
-├── validation/         # Zod schemas (depends on types)
-├── utils/              # Pure functions (depends on types)
-├── db/                 # IndexedDB layer (depends on types)
-├── api/                # External API clients (depends on utils, types)
-├── stores/             # Pinia stores (depends on api, db, utils, types)
-├── composables/        # Vue composition functions (depends on api, utils, types)
-├── components/         # Vue components (depends on stores, utils, types)
-├── views/              # Route-level views (depends on components, stores, types)
-├── router/             # Vue Router config (depends on views, types)
-└── App.vue / main.ts   # App entry (depends on everything)
+├── types/              # TypeScript 类型（无依赖）
+├── validation/         # Zod 模式（依赖 types）
+├── utils/              # 纯函数（依赖 types）
+├── db/                 # IndexedDB 层（依赖 types）
+├── api/                # 外部 API 客户端（依赖 utils、types）
+├── stores/             # Pinia Store（依赖 api、db、utils、types）
+├── composables/        # Vue 组合函数（依赖 api、utils、types）
+├── components/         # Vue 组件（依赖 stores、utils、types）
+├── views/              # 路由级视图（依赖 components、stores、types）
+├── router/             # Vue Router 配置（依赖 views、types）
+└── App.vue / main.ts   # 应用入口（依赖所有模块）
 ```
 
-## Store Architecture
+## Store 架构
 
-### stockListStore
-- **Responsibility**: Stock CRUD + IndexedDB persistence
-- **State**: `stocks`, `sortedStocks`, `stockCount`
-- **Actions**: `loadStocks`, `addStock`, `deleteStock`, `getStockById`, `updateStock`, `recalculateStock`
+### stockListStore（股票列表 Store）
+- **职责**: 股票 CRUD + IndexedDB 持久化
+- **状态**: `stocks`、`sortedStocks`、`stockCount`
+- **操作**: `loadStocks`、`addStock`、`deleteStock`、`getStockById`、`updateStock`、`recalculateStock`
 
-### stockApiStore
-- **Responsibility**: External API calls + financial calculations
-- **State**: `isApiAvailable`, `apiTestResults`
-- **Actions**: `testAPIs`, `fetchStockInfo`, `fetchFinancialReport`, `updateStockMarketCap`, `updateStockWithRecalculation`, `updateAllStocks`, `searchStocks`
+### stockApiStore（股票 API Store）
+- **职责**: 外部 API 调用 + 财务计算
+- **状态**: `isApiAvailable`、`apiTestResults`
+- **操作**: `testAPIs`、`fetchStockInfo`、`fetchFinancialReport`、`updateStockMarketCap`、`updateStockWithRecalculation`、`updateAllStocks`、`searchStocks`
 
-### stockUIStore
-- **Responsibility**: UI state management
-- **State**: `loading`, `error`, `searchResults`, `isSearching`, `updateProgress`, `isUpdatingAllStocks`, `currentlyUpdatingIds`
-- **Actions**: `clearError`, `clearSearchResults`
+### stockUIStore（UI 状态 Store）
+- **职责**: UI 状态管理
+- **状态**: `loading`、`error`、`searchResults`、`isSearching`、`updateProgress`、`isUpdatingAllStocks`、`currentlyUpdatingIds`
+- **操作**: `clearError`、`clearSearchResults`
 
-## Data Flow
+## 数据流
 
 ```
-User Action → View → Store Action → API Call → Response Validation → Store State → View Update
+用户操作 → 视图 → Store 操作 → API 调用 → 响应验证 → Store 状态 → 视图更新
                                     ↓
-                              IndexedDB (persist)
+                              IndexedDB（持久化）
                                     ↓
-                              Store State (reactive)
+                              Store 状态（响应式）
 ```
 
-## Key Design Decisions
+## 关键设计决策
 
-1. **Composition API only** - No Options API, all components use `<script setup lang="ts">`
-2. **Single source of truth** - IndexedDB is the persistent store; Pinia is the reactive cache
-3. **API boundary validation** - All external API responses validated with Zod schemas
-4. **Structured logging** - No console.log; use `src/utils/logger.ts` with levels (debug/info/warn/error)
-5. **Rate limiting** - All East Money API calls go through `financialReportRateLimiter` (500ms interval)
-6. **Currency normalization** - All values in 亿元 (hundred million yuan), HKD as base currency
+1. **仅使用 Composition API** - 不使用 Options API，所有组件使用 `<script setup lang="ts">`
+2. **单一数据源** - IndexedDB 是持久存储；Pinia 是响应式缓存
+3. **API 边界验证** - 所有外部 API 响应使用 Zod 模式验证
+4. **结构化日志** - 禁止 console.log；使用 `src/utils/logger.ts` 分级日志（debug/info/warn/error）
+5. **限流** - 所有东方财富 API 调用通过 `financialReportRateLimiter`（500ms 间隔）
+6. **货币标准化** - 所有值以 亿元 为单位，港币为基准货币

@@ -71,17 +71,58 @@
           </template>
         </div>
       </div>
+      <div class="valuation-item" :class="getSelectedPrrBgClass()">
+        <div class="valuation-label">
+          <span>PRR</span>
+          <button
+            class="prr-formula-btn"
+            @click.stop="showPrrFormulaDropdown = !showPrrFormulaDropdown"
+            title="切换公式"
+          >
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <span
+            class="info-icon"
+            @click.stop
+            @mouseenter="showPrrTooltip = true"
+            @mouseleave="showPrrTooltip = false"
+          >ⓘ
+            <span v-if="showPrrTooltip" class="tooltip-popup">{{ getSelectedPrrTooltip() }}</span>
+          </span>
+          <!-- PRR Formula Dropdown -->
+          <div v-if="showPrrFormulaDropdown" class="prr-dropdown" @click.stop>
+            <button
+              v-for="formula in prrFormulaList"
+              :key="formula.type"
+              class="prr-dropdown-item"
+              :class="{ 'is-active': formula.type === currentPrrFormula }"
+              @click="selectPrrFormula(formula.type)"
+            >
+              <span class="prr-dropdown-name">{{ formula.name }}</span>
+              <span class="prr-dropdown-value font-mono-nums">
+                {{ formula.currentValue !== null ? formula.currentValue.toFixed(2) + 'PR' : '-' }}
+              </span>
+            </button>
+          </div>
+        </div>
+        <div class="valuation-value font-mono-nums" :class="getSelectedPrrTextClass()" data-testid="prr-value">
+          {{ getSelectedPrrDisplay() }}
+        </div>
+      </div>
     </div>
 
     <!-- Row 4: Target Price -->
     <div
-      v-if="stock.targetPriceConfig"
+      v-if="stock.targetPriceConfig || stock.prrTargetPriceConfig?.enabled"
       class="target-price-row"
       :class="getTargetPriceRowClass()"
     >
       <div class="target-price-area" @click.stop="showTargetPriceConfig = true">
         <div class="target-price-label">
           <span>目标价</span>
+          <span v-if="stock.prrTargetPriceConfig?.enabled" class="prr-badge" title="基于PRR计算">PRR</span>
           <span
             class="info-icon"
             @click.stop
@@ -131,11 +172,12 @@
       </div>
     </div>
 
-    <!-- Target Price Config Modal -->
+    <!-- Target Price Config Modal (merged) -->
     <TargetPriceConfig
       :stock-id="stock.id"
       v-model:visible="showTargetPriceConfig"
       :initial-config="stock.targetPriceConfig"
+      :initial-prr-config="stock.prrTargetPriceConfig ?? null"
       @saved="onTargetPriceSaved"
     />
 
@@ -149,10 +191,25 @@
         </span>
       </div>
       <div class="metric-item">
+        <span class="metric-label">ROE</span>
+        <span class="metric-value font-mono-nums">
+          <template v-if="stock.roe != null">{{ stock.roe.toFixed(2) }}%</template>
+          <template v-else><span class="na-text">-</span></template>
+          <span v-if="stock.roeProjected" class="projected-badge">预</span>
+        </span>
+      </div>
+      <div class="metric-item">
         <span class="metric-label">流动比率</span>
         <span class="metric-value font-mono-nums" :class="getMetricClass('currentRatio', stock.currentRatio)">
           <template v-if="stock.currentRatio !== null">{{ stock.currentRatio.toFixed(2) }}</template>
           <template v-else><span class="na-text">N/A</span></template>
+        </span>
+      </div>
+      <div class="metric-item">
+        <span class="metric-label">ROA</span>
+        <span class="metric-value font-mono-nums">
+          <template v-if="stock.roa != null">{{ stock.roa.toFixed(2) }}%</template>
+          <template v-else><span class="na-text">-</span></template>
         </span>
       </div>
       <div class="metric-item">
@@ -181,18 +238,58 @@
 import { ref, computed } from 'vue'
 import type { StockData } from '@/types/stock'
 import { useStockStore } from '@/stores/stockStore'
+import { useStockListStore } from '@/stores/stockListStore'
 import { formatCurrency, formatYi, formatDate, getValuationClass, getValuationLevel } from '@/utils/formatters'
-import type { TargetPriceError } from '@/utils/targetPriceCalculator'
+import { formatPRR, getPrrValuationBgClass, getPrrValuationLevel, getPrrValuationText, getPrrFormulaText, getPrrFormulaDescription, getPrrFormulaWithValues } from '@/utils/prr-formatter'
+import type { PRRFormulaType } from '@/types/prr'
 import TargetPriceConfig from './TargetPriceConfig.vue'
+
 
 const showTooltip1 = ref(false)
 const showTooltip2 = ref(false)
+const showPrrTooltip = ref(false)
+const showPrrFormulaDropdown = ref(false)
 const showTargetTooltip = ref(false)
 const showTargetPriceConfig = ref(false)
 
 const stockStore = useStockStore()
+const stockListStore = useStockListStore()
 
 const targetPriceResult = computed(() => stockStore.getTargetPrice(props.stock.id))
+
+// PRR formula dropdown
+const currentPrrFormula = computed<PRRFormulaType>(() => {
+  return props.stock.prrSelectedFormula ?? 'base'
+})
+
+function getPrrValueForFormula(formula: PRRFormulaType): number | null {
+  const stock = props.stock
+  switch (formula) {
+    case 'base': return stock.prrBase ?? null
+    case 'adjusted': return stock.prrAdjusted ?? null
+    case 'cycle': return stock.prrCycle ?? null
+    case 'index': return stock.prrIndex ?? null
+    case 'derived': return stock.prrDerived ?? null
+  }
+}
+
+const prrFormulaList = computed(() => {
+  const formulas: PRRFormulaType[] = ['base', 'adjusted', 'cycle', 'index', 'derived']
+  return formulas.map(type => ({
+    type,
+    name: getPrrFormulaDescription(type),
+    currentValue: getPrrValueForFormula(type)
+  }))
+})
+
+async function selectPrrFormula(formula: PRRFormulaType) {
+  showPrrFormulaDropdown.value = false
+  try {
+    await stockListStore.updatePrrFormula(props.stock.id, formula)
+  } catch {
+    // Error handled in store
+  }
+}
 
 function formatMarketCap(stock: StockData): string {
   // formatCurrency already includes the unit (亿港元/亿人民币), so no need to add it again
@@ -210,7 +307,8 @@ const emit = defineEmits<{
 
 function handleClick(event: MouseEvent) {
   const target = event.target as HTMLElement
-  if (target.closest('.info-icon') || target.closest('.tooltip-popup') || target.closest('.target-price-area')) return
+  if (target.closest('.info-icon') || target.closest('.tooltip-popup') || target.closest('.target-price-area') || target.closest('.prr-dropdown') || target.closest('.prr-formula-btn')) return
+  showPrrFormulaDropdown.value = false
   emit('click', props.stock)
 }
 
@@ -229,6 +327,76 @@ function getCardValuation2(): number | null {
     return stock.peRatio
   }
   return stock.valuation2
+}
+
+function getSelectedPrrDisplay(): string {
+  const stock = props.stock
+  const formula = stock.prrSelectedFormula ?? 'base'
+  let prrValue: number | null = null
+  switch (formula) {
+    case 'base': prrValue = stock.prrBase ?? null; break
+    case 'adjusted': prrValue = stock.prrAdjusted ?? null; break
+    case 'cycle': prrValue = stock.prrCycle ?? null; break
+    case 'index': prrValue = stock.prrIndex ?? null; break
+    case 'derived': prrValue = stock.prrDerived ?? null; break
+  }
+  return formatPRR(prrValue)
+}
+
+function getSelectedPrrBgClass(): string {
+  const stock = props.stock
+  const formula = stock.prrSelectedFormula ?? 'base'
+  let prrValue: number | null = null
+  switch (formula) {
+    case 'base': prrValue = stock.prrBase ?? null; break
+    case 'adjusted': prrValue = stock.prrAdjusted ?? null; break
+    case 'cycle': prrValue = stock.prrCycle ?? null; break
+    case 'index': prrValue = stock.prrIndex ?? null; break
+    case 'derived': prrValue = stock.prrDerived ?? null; break
+  }
+  const marketMap: Record<string, 'A' | 'H' | 'US'> = { HK: 'H', A: 'A' }
+  const marketType = marketMap[stock.market] ?? 'H'
+  const level = getPrrValuationLevel(prrValue, marketType)
+  return getPrrValuationBgClass(level)
+}
+
+function getSelectedPrrTextClass(): string {
+  const stock = props.stock
+  const formula = stock.prrSelectedFormula ?? 'base'
+  let prrValue: number | null = null
+  switch (formula) {
+    case 'base': prrValue = stock.prrBase ?? null; break
+    case 'adjusted': prrValue = stock.prrAdjusted ?? null; break
+    case 'cycle': prrValue = stock.prrCycle ?? null; break
+    case 'index': prrValue = stock.prrIndex ?? null; break
+    case 'derived': prrValue = stock.prrDerived ?? null; break
+  }
+  const marketMap: Record<string, 'A' | 'H' | 'US'> = { HK: 'H', A: 'A' }
+  const marketType = marketMap[stock.market] ?? 'H'
+  const level = getPrrValuationLevel(prrValue, marketType)
+  return `val-${level}`
+}
+
+function getSelectedPrrTooltip(): string {
+  const stock = props.stock
+  const formula = stock.prrSelectedFormula ?? 'base'
+  const formulaText = getPrrFormulaText(formula as PRRFormulaType)
+  let prrValue: number | null = null
+  switch (formula) {
+    case 'base': prrValue = stock.prrBase ?? null; break
+    case 'adjusted': prrValue = stock.prrAdjusted ?? null; break
+    case 'cycle': prrValue = stock.prrCycle ?? null; break
+    case 'index': prrValue = stock.prrIndex ?? null; break
+    case 'derived': prrValue = stock.prrDerived ?? null; break
+  }
+  const formulaWithValues = getPrrFormulaWithValues(formula as PRRFormulaType, {
+    peRatio: stock.peRatio ?? null,
+    roe: stock.roe ?? null,
+    pbRatio: stock.pbRatio ?? null,
+    dividendPayoutRatio: stock.dividendPayoutRatio ?? null,
+    roa: stock.roa ?? null,
+  })
+  return `${formulaText}\n${formulaWithValues}\n结果: ${prrValue !== null ? prrValue.toFixed(2) + 'PR' : '-'} (${getPrrValuationText(prrValue, stock.market === 'A' ? 'A' : 'H')})`
 }
 
 function getMetricClass(type: 'pe' | 'currentRatio', value: number | null): string {
@@ -430,7 +598,7 @@ function onTargetPriceSaved() {
 /* Valuations */
 .valuation-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 12px;
   margin-bottom: 14px;
   padding-bottom: 14px;
@@ -462,6 +630,12 @@ function onTargetPriceSaved() {
 .valuation-value.val-high { color: var(--val-high); }
 .valuation-value.val-negative { color: var(--val-negative); }
 .valuation-value.val-na { color: var(--val-na); }
+
+/* PRR valuation text colors */
+.valuation-value.val-low { color: var(--val-low) !important; }
+.valuation-value.val-medium { color: var(--val-medium) !important; }
+.valuation-value.val-high { color: var(--val-high) !important; }
+.valuation-value.val-unknown { color: var(--val-na) !important; }
 
 /* Valuation background classes */
 .valuation-item.val-low-bg {
@@ -659,6 +833,7 @@ function onTargetPriceSaved() {
   min-height: 44px;
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 
 .target-price-empty:hover .unconfigured-text {
@@ -723,6 +898,125 @@ function onTargetPriceSaved() {
 
 .text-positive { color: var(--val-low); }
 .text-negative { color: var(--val-negative); }
+
+/* PRR Formula Dropdown */
+.prr-formula-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.prr-formula-btn:hover {
+  background-color: var(--brand-primary-light);
+  color: var(--brand-primary);
+}
+
+.prr-formula-btn svg {
+  display: block;
+}
+
+.valuation-label {
+  position: relative;
+}
+
+.prr-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: auto;
+  z-index: 50;
+  min-width: 170px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md, 6px);
+  box-shadow: var(--shadow-lg);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.prr-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-primary);
+  border-radius: var(--radius-sm, 4px);
+  text-align: left;
+  transition: background-color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.prr-dropdown-item:hover {
+  background-color: var(--bg-secondary);
+}
+
+.prr-dropdown-item.is-active {
+  background-color: var(--brand-primary-light);
+  color: var(--brand-primary);
+  font-weight: 600;
+}
+
+.prr-dropdown-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.prr-dropdown-value {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.prr-dropdown-item.is-active .prr-dropdown-value {
+  color: var(--brand-primary);
+}
+
+/* PRR Badge in Target Price */
+.prr-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--brand-primary);
+  background-color: var(--brand-primary-light);
+  border-radius: 3px;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+}
+
+/* PRR Target Config Button */
+.prr-target-config-btn {
+  margin-left: 0;
+}
+
+.prr-target-config-btn svg {
+  color: var(--brand-primary);
+}
+
+.prr-target-config-btn:hover svg {
+  color: var(--brand-primary);
+}
 
 /* Footer */
 .card-footer {
@@ -810,6 +1104,12 @@ function onTargetPriceSaved() {
   .stock-card {
     max-width: 100%;
     overflow-x: hidden;
+  }
+
+  /* PRR dropdown aligns to the right on mobile to avoid overflow clipping */
+  .prr-dropdown {
+    left: auto;
+    right: 0;
   }
 }
 </style>

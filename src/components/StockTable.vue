@@ -9,25 +9,60 @@
               {{ sortKey === 'name' && sortOrder === 'desc' ? '↓' : '↑' }}
             </span>
           </th>
-          <th class="col-target-price">目标价</th>
-          <th class="col-valuation" @click="toggleSort('valuation1')">
-            估值1
-            <span class="sort-icon" :class="{ active: sortKey === 'valuation1' }">
-              {{ sortKey === 'valuation1' && sortOrder === 'desc' ? '↓' : '↑' }}
-            </span>
-          </th>
-          <th class="col-valuation" @click="toggleSort('valuation2')">估值2</th>
           <th class="col-number" @click="toggleSort('marketCap')">
             市值
             <span class="sort-icon" :class="{ active: sortKey === 'marketCap' }">
               {{ sortKey === 'marketCap' && sortOrder === 'desc' ? '↓' : '↑' }}
             </span>
           </th>
-          <th class="col-number" @click="toggleSort('netCash')">净现金</th>
-          <th class="col-number" @click="toggleSort('freeCashFlow')">FCF</th>
-          <th class="col-number" @click="toggleSort('netProfit')">净利润</th>
-          <th class="col-number" @click="toggleSort('peRatio')">PE</th>
-          <th class="col-number" @click="toggleSort('currentRatio')">流动比率</th>
+          <th class="col-valuation" @click="toggleSort('valuation1')">
+            估值1
+            <span class="sort-icon" :class="{ active: sortKey === 'valuation1' }">
+              {{ sortKey === 'valuation1' && sortOrder === 'desc' ? '↓' : '↑' }}
+            </span>
+          </th>
+          <th class="col-valuation" @click="toggleSort('valuation2')">
+            估值2
+            <span class="sort-icon" :class="{ active: sortKey === 'valuation2' }">
+              {{ sortKey === 'valuation2' && sortOrder === 'desc' ? '↓' : '↑' }}
+            </span>
+          </th>
+          <th class="col-valuation" @click="toggleSort('prr')">
+            PRR
+            <span class="sort-icon" :class="{ active: sortKey === 'prr' }">
+              {{ sortKey === 'prr' && sortOrder === 'desc' ? '↓' : '↑' }}
+            </span>
+          </th>
+          <th class="col-number" @click="toggleSort('roe')">
+            ROE
+            <span class="sort-icon" :class="{ active: sortKey === 'roe' }">
+              {{ sortKey === 'roe' && sortOrder === 'desc' ? '↓' : '↑' }}
+            </span>
+          </th>
+          <th class="col-number" @click="toggleSort('roa')">
+            ROA
+            <span class="sort-icon" :class="{ active: sortKey === 'roa' }">
+              {{ sortKey === 'roa' && sortOrder === 'desc' ? '↓' : '↑' }}
+            </span>
+          </th>
+          <th class="col-number" @click="toggleSort('dividendPayoutRatio')">
+            股息支付率
+            <span class="sort-icon" :class="{ active: sortKey === 'dividendPayoutRatio' }">
+              {{ sortKey === 'dividendPayoutRatio' && sortOrder === 'desc' ? '↓' : '↑' }}
+            </span>
+          </th>
+          <th class="col-number" @click="toggleSort('pbRatio')">
+            PB
+            <span class="sort-icon" :class="{ active: sortKey === 'pbRatio' }">
+              {{ sortKey === 'pbRatio' && sortOrder === 'desc' ? '↓' : '↑' }}
+            </span>
+          </th>
+          <th class="col-target-price">目标价</th>
+          <th class="col-number">净现金</th>
+          <th class="col-number">FCF</th>
+          <th class="col-number">净利润</th>
+          <th class="col-number">PE</th>
+          <th class="col-number">流动比率</th>
           <th class="col-date">更新</th>
         </tr>
       </thead>
@@ -50,21 +85,7 @@
               </div>
             </div>
           </td>
-          <td class="col-target-price">
-            <div class="target-price-cell" @click.stop="onTargetPriceClick(stock)">
-              <template v-if="getTargetPriceForStock(stock.id).error">
-                <span class="tp-error">{{ getTargetPriceErrorText(getTargetPriceForStock(stock.id).error) }}</span>
-              </template>
-              <template v-else-if="getTargetPriceForStock(stock.id).price !== null">
-                <span class="tp-price font-mono-nums">{{ getTargetPriceForStock(stock.id).price!.toFixed(2) }}</span>
-                <span class="tp-unit">{{ stock.market === 'A' ? '元' : '港元' }}</span>
-              </template>
-              <template v-else>
-                <span class="tp-unconfigured">未设置</span>
-                <span class="tp-hint">点击配置</span>
-              </template>
-            </div>
-          </td>
+          <td class="col-number font-mono-nums">{{ formatYi(stock.marketCap) }}</td>
           <td class="col-valuation">
             <div class="val-cell" :class="getValuationBgClass(getVal1(stock))">
               <span class="font-mono-nums val-text" :class="getValClass(getVal1(stock))">
@@ -81,7 +102,62 @@
               </span>
             </div>
           </td>
-          <td class="col-number font-mono-nums">{{ formatYi(stock.marketCap) }}</td>
+          <td class="col-valuation" style="position: relative; overflow: visible;">
+            <div class="val-cell" :class="getPrrBgClass(stock)" data-testid="prr-cell" @click.stop="togglePrrDropdown(stock.id)">
+              <span class="font-mono-nums val-text" :class="getPrrTextClass(stock)">
+                {{ getSelectedPrrDisplay(stock) }}
+              </span>
+            </div>
+            <div v-if="prrDropdownStockId === stock.id" class="prr-dropdown" @click.stop>
+              <button
+                v-for="opt in prrFormulaOptions"
+                :key="opt.value"
+                class="prr-dropdown-item"
+                :class="{ active: (stock.prrSelectedFormula ?? 'base') === opt.value }"
+                @click="selectPrrFormula(stock.id, opt.value)"
+                type="button"
+              >
+                <span class="prr-dropdown-label">{{ opt.label }}</span>
+                <span class="prr-dropdown-expr">{{ opt.expr }}</span>
+              </button>
+            </div>
+          </td>
+          <td class="col-number font-mono-nums">
+            <template v-if="stock.roe != null">{{ stock.roe.toFixed(2) }}%</template>
+            <template v-else><span class="na-text">-</span></template>
+            <span v-if="stock.roeProjected" class="projected-badge">预</span>
+          </td>
+          <td class="col-number font-mono-nums">
+            <template v-if="stock.roa != null">{{ stock.roa.toFixed(2) }}%</template>
+            <template v-else><span class="na-text">-</span></template>
+            <span v-if="stock.roaProjected" class="projected-badge">预</span>
+          </td>
+          <td class="col-number font-mono-nums">
+            <template v-if="stock.dividendPayoutRatio != null">{{ (stock.dividendPayoutRatio > 1 ? stock.dividendPayoutRatio : stock.dividendPayoutRatio * 100).toFixed(2) }}%</template>
+            <template v-else><span class="na-text">-</span></template>
+          </td>
+          <td class="col-number font-mono-nums">
+            <template v-if="stock.pbRatio != null">{{ stock.pbRatio.toFixed(2) }}</template>
+            <template v-else><span class="na-text">-</span></template>
+          </td>
+          <td class="col-target-price" style="position: relative;">
+            <div class="target-price-cell" @click.stop="onTargetPriceClick(stock)">
+              <template v-if="getTargetPriceForStock(stock.id).error">
+                <span class="tp-error">{{ getTargetPriceErrorText(getTargetPriceForStock(stock.id).error) }}</span>
+              </template>
+              <template v-else-if="getTargetPriceForStock(stock.id).price !== null">
+                <span class="tp-price font-mono-nums">{{ getTargetPriceForStock(stock.id).price!.toFixed(2) }}</span>
+                <span class="tp-unit">{{ stock.market === 'A' ? '元' : '港元' }}</span>
+              </template>
+              <template v-else>
+                <span class="tp-unconfigured">未设置</span>
+                <span class="tp-hint">点击配置</span>
+              </template>
+            </div>
+            <div v-if="targetPriceMenuStockId === stock.id" class="tp-mini-menu" @click.stop>
+              <div class="tp-mini-menu-item" @click="openTargetPriceConfig(stock.id)">配置目标价</div>
+            </div>
+          </td>
           <td class="col-number font-mono-nums">
             <span :class="stock.netCash >= 0 ? 'text-positive' : 'text-negative'">{{ formatYi(stock.netCash) }}</span>
           </td>
@@ -110,6 +186,7 @@
       :stock-id="editingTargetPriceId"
       :visible="editingTargetPriceId !== null"
       :initial-config="getInitialTargetPriceConfig(editingTargetPriceId)"
+      :initial-prr-config="getInitialPrrTargetPriceConfig(editingTargetPriceId)"
       @saved="onTargetPriceSaved"
       @update:visible="(val: boolean) => { if (!val) editingTargetPriceId = null }"
     />
@@ -117,10 +194,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { StockData } from '@/types/stock'
 import { formatYi, formatDate, getValuationClass, getValuationLevel } from '@/utils/formatters'
+import { formatPRR, getPrrValuationLevel } from '@/utils/prr-formatter'
 import { useStockListStore } from '@/stores/stockListStore'
+import type { PRRFormulaType, PRRTargetPriceConfig } from '@/types/prr'
 import TargetPriceConfig from './TargetPriceConfig.vue'
 
 const props = defineProps<{
@@ -128,11 +207,12 @@ const props = defineProps<{
   updatingIds: Set<string>
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'click', stock: StockData): void
+  (e: 'config-target', stockId: string): void
 }>()
 
-const sortKey = ref<'name' | 'marketCap' | 'netCash' | 'freeCashFlow' | 'netProfit' | 'valuation1' | 'valuation2' | 'peRatio' | 'currentRatio'>('name')
+const sortKey = ref<'name' | 'marketCap' | 'netCash' | 'freeCashFlow' | 'netProfit' | 'valuation1' | 'valuation2' | 'peRatio' | 'currentRatio' | 'prr' | 'roe' | 'roa' | 'dividendPayoutRatio' | 'pbRatio'>('name')
 const sortOrder = ref<'asc' | 'desc'>('asc')
 
 function toggleSort(key: typeof sortKey.value) {
@@ -163,6 +243,11 @@ const sortedStocks = computed(() => {
     else if (key === 'valuation2') { aVal = getVal2(a) ?? 9999; bVal = getVal2(b) ?? 9999 }
     else if (key === 'peRatio') { aVal = a.peRatio ?? 9999; bVal = b.peRatio ?? 9999 }
     else if (key === 'currentRatio') { aVal = a.currentRatio ?? -9999; bVal = b.currentRatio ?? -9999 }
+    else if (key === 'prr') { aVal = getSelectedPrrValue(a) ?? 9999; bVal = getSelectedPrrValue(b) ?? 9999 }
+    else if (key === 'roe') { aVal = a.roe ?? -9999; bVal = b.roe ?? -9999 }
+    else if (key === 'roa') { aVal = a.roa ?? -9999; bVal = b.roa ?? -9999 }
+    else if (key === 'dividendPayoutRatio') { aVal = a.dividendPayoutRatio ?? -9999; bVal = b.dividendPayoutRatio ?? -9999 }
+    else if (key === 'pbRatio') { aVal = a.pbRatio ?? 9999; bVal = b.pbRatio ?? 9999 }
 
     if (typeof aVal === 'string' && typeof bVal === 'string') {
       return aVal.localeCompare(bVal) * mult
@@ -202,6 +287,47 @@ function getCurrentRatioClass(value: number | null): string {
   return value >= 1.5 ? 'metric-low' : 'metric-medium'
 }
 
+function getSelectedPrrValue(stock: StockData): number | null {
+  switch (stock.prrSelectedFormula) {
+    case 'base': return stock.prrBase ?? null
+    case 'adjusted': return stock.prrAdjusted ?? null
+    case 'cycle': return stock.prrCycle ?? null
+    case 'index': return stock.prrIndex ?? null
+    case 'derived': return stock.prrDerived ?? null
+    default: return stock.prrBase ?? null
+  }
+}
+
+function getSelectedPrrDisplay(stock: StockData): string {
+  return formatPRR(getSelectedPrrValue(stock))
+}
+
+function getPrrBgClass(stock: StockData): string {
+  const prrValue = getSelectedPrrValue(stock)
+  const marketType = stock.market === 'HK' ? 'H' : 'A'
+  const level = getPrrValuationLevel(prrValue, marketType)
+  const bgClassMap: Record<string, string> = {
+    low: 'val-low-bg',
+    medium: 'val-medium-bg',
+    high: 'val-high-bg',
+    unknown: 'val-na-bg',
+  }
+  return bgClassMap[level] ?? ''
+}
+
+function getPrrTextClass(stock: StockData): string {
+  const prrValue = getSelectedPrrValue(stock)
+  const marketType = stock.market === 'HK' ? 'H' : 'A'
+  const level = getPrrValuationLevel(prrValue, marketType)
+  const textClassMap: Record<string, string> = {
+    low: 'val-low',
+    medium: 'val-medium',
+    high: 'val-high',
+    unknown: 'val-na',
+  }
+  return textClassMap[level] ?? ''
+}
+
 const stockListStore = useStockListStore()
 const editingTargetPriceId = ref<string | null>(null)
 
@@ -238,13 +364,59 @@ function getInitialTargetPriceConfig(id: string) {
   return stock?.targetPriceConfig ?? null
 }
 
+// PRR formula dropdown state
+const prrDropdownStockId = ref<string | null>(null)
+const prrFormulaOptions: Array<{ value: PRRFormulaType; label: string; expr: string }> = [
+  { value: 'base', label: '基础', expr: 'PR = PE / ROE' },
+  { value: 'adjusted', label: '修正', expr: 'PR = N × PE / ROE' },
+  { value: 'cycle', label: '周期', expr: 'PR = PB × 100 / ROE²' },
+  { value: 'index', label: '指数', expr: 'PR = PE² / PB / 100' },
+  { value: 'derived', label: '衍生', expr: 'PR = PE / (k × ROA)' },
+]
+
+function togglePrrDropdown(stockId: string) {
+  prrDropdownStockId.value = prrDropdownStockId.value === stockId ? null : stockId
+}
+
+async function selectPrrFormula(stockId: string, formula: PRRFormulaType) {
+  prrDropdownStockId.value = null
+  await stockListStore.updatePrrFormula(stockId, formula)
+}
+
+// Target price mini menu state
+const targetPriceMenuStockId = ref<string | null>(null)
+
 function onTargetPriceClick(stock: StockData) {
-  editingTargetPriceId.value = stock.id
+  targetPriceMenuStockId.value = stock.id
+}
+
+function openTargetPriceConfig(stockId: string) {
+  targetPriceMenuStockId.value = null
+  emit('config-target', stockId)
+  editingTargetPriceId.value = stockId
+}
+
+function getInitialPrrTargetPriceConfig(id: string): PRRTargetPriceConfig | null {
+  const stock = stockListStore.stocks.find(s => s.id === id)
+  return stock?.prrTargetPriceConfig ?? null
 }
 
 function onTargetPriceSaved() {
   editingTargetPriceId.value = null
 }
+
+function onDocumentClick() {
+  prrDropdownStockId.value = null
+  targetPriceMenuStockId.value = null
+}
+
+onMounted(() => {
+  document.addEventListener('click', onDocumentClick)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', onDocumentClick)
+})
 </script>
 
 <style scoped>
@@ -354,7 +526,7 @@ function onTargetPriceSaved() {
 }
 
 .col-number { width: 95px; text-align: left; }
-.col-valuation { width: 80px; text-align: left; }
+.col-valuation { width: 100px; text-align: left; }
 .col-date { width: 85px; text-align: left; font-size: 12px; }
 
 /* Name cell */
@@ -495,6 +667,88 @@ function onTargetPriceSaved() {
   background-color: var(--projected-bg);
   border: 1px solid var(--projected-border);
   border-radius: var(--radius-sm, 4px);
+}
+
+/* PRR Formula Dropdown */
+.prr-dropdown {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  z-index: 100;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 180px;
+  padding: 4px 0;
+}
+
+.prr-dropdown-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color var(--transition-fast);
+  font-family: inherit;
+}
+
+.prr-dropdown-item:hover {
+  background-color: var(--bg-secondary);
+}
+
+.prr-dropdown-item.active {
+  background-color: var(--brand-primary-light);
+}
+
+.prr-dropdown-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.prr-dropdown-item.active .prr-dropdown-label {
+  color: var(--brand-primary);
+}
+
+.prr-dropdown-expr {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono, monospace);
+}
+
+/* Target price mini menu */
+.tp-mini-menu {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  z-index: 100;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 150px;
+  padding: 4px 0;
+}
+
+.tp-mini-menu-item {
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.tp-mini-menu-item:hover {
+  background-color: var(--bg-secondary);
+  color: var(--brand-primary);
 }
 
 @media (max-width: 1024px) {

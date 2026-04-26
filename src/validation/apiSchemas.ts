@@ -10,6 +10,7 @@ export const eastMoneyStockInfoSchema = z.object({
   market: z.enum(['HK', 'A']),
   marketCap: z.number(),
   totalShares: z.number().nullable(),
+  pbRatio: z.number().nullable(),
 })
 
 // ============================================================

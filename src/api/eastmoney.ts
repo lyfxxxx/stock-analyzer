@@ -21,10 +21,10 @@ export async function fetchEastMoneyStockInfo(code: string, market: 'HK' | 'A'):
       secid = code.startsWith('6') ? `1.${code}` : `0.${code}`
     }
 
-    // f57 = code, f58 = name, f116 = total market cap, f84 = total shares
+    // f57 = code, f58 = name, f116 = total market cap, f84 = total shares, f167 = PB ratio
     const result = await withRetry(async () => {
       const response = await fetchWithTimeout(
-        `${EASTMONEY_API_BASE}?secid=${secid}&fields=f57,f58,f116,f84`,
+        `${EASTMONEY_API_BASE}?secid=${secid}&fields=f57,f58,f116,f84,f167`,
         {
           method: 'GET',
           mode: 'cors',
@@ -44,12 +44,15 @@ export async function fetchEastMoneyStockInfo(code: string, market: 'HK' | 'A'):
     if (result.data) {
       const rawTotalShares = result.data.f84
       const totalShares = rawTotalShares ? parseFloat(rawTotalShares) / 100000000 : null
+      const rawPb = result.data.f167
+      const pbRatio = rawPb ? parseFloat(rawPb) / 100 : null
       return validateApiResponse({
         name: result.data.f58,
         code: result.data.f57,
         market,
         marketCap: parseFloat(result.data.f116) / 100000000,
-        totalShares
+        totalShares,
+        pbRatio
       }, eastMoneyStockInfoSchema)
     }
 

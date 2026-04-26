@@ -39,6 +39,9 @@ export const stockDataSchema = z.object({
       currentRatioProjected: z.boolean().optional(),
       peRatio: z.union([z.number(), z.null()]).optional(),
       peRatioProjected: z.boolean().optional(),
+      roe: z.union([z.number(), z.null()]).optional(),
+      roa: z.union([z.number(), z.null()]).optional(),
+      dividendPayoutRatio: z.union([z.number(), z.null()]).optional(),
     })
   ),
   createdAt: z.number(),
@@ -53,4 +56,23 @@ export const stockDataSchema = z.object({
   peRatioProjected: z.boolean().optional(),
   totalShares: z.union([z.number(), z.null()]),
   targetPriceConfig: z.union([targetPriceConfigSchema, z.null()]),
+  roe: z.union([z.number(), z.null()]).optional(),
+  roa: z.union([z.number(), z.null()]).optional(),
+  pbRatio: z.union([z.number(), z.null()]).optional(),
+  dividendPayoutRatio: z.union([z.number(), z.null()]).optional(),
+  prrBase: z.union([z.number(), z.null()]).optional(),
+  prrAdjusted: z.union([z.number(), z.null()]).optional(),
+  prrCycle: z.union([z.number(), z.null()]).optional(),
+  prrIndex: z.union([z.number(), z.null()]).optional(),
+  prrDerived: z.union([z.number(), z.null()]).optional(),
+  prrSelectedFormula: z.enum(['base', 'adjusted', 'cycle', 'index', 'derived']).optional(),
+  prrTargetPriceConfig: z.union([
+    z.object({
+      enabled: z.boolean(),
+      formulaType: z.enum(['base', 'adjusted', 'cycle', 'index', 'derived']),
+      targetPR: z.number(),
+    }),
+    z.null(),
+  ]).optional(),
+  targetPriceMethod: z.enum(['traditional', 'prr']).optional(),
 })

@@ -1,10 +1,10 @@
-# Frontend Conventions - Stock Analyzer
+# 前端规范 - 股票分析器
 
-## Vue Component Patterns
+## Vue 组件模式
 
-### Composition API with `<script setup>`
+### 使用 `<script setup>` 的 Composition API
 
-All components MUST use Composition API with `<script setup lang="ts">`.
+所有组件**必须**使用 Composition API + `<script setup lang="ts">`。
 
 ```vue
 <script setup lang="ts">
@@ -36,23 +36,23 @@ function handleDelete() {
 
 <template>
   <div class="stock-card">
-    <!-- template content -->
+    <!-- 模板内容 -->
   </div>
 </template>
 
 <style scoped>
 .stock-card {
-  /* styles using CSS variables */
+  /* 使用 CSS 变量的样式 */
 }
 </style>
 ```
 
-## CSS Variables
+## CSS 变量
 
-All components should reference CSS variables from `src/assets/base.css`:
+所有组件应引用 `src/assets/base.css` 中定义的 CSS 变量：
 
 ```css
-/* Available variables */
+/* 可用变量 */
 --color-primary: #4FC08D;
 --color-danger: #FF6B6B;
 --color-warning: #FFA500;
@@ -76,27 +76,27 @@ All components should reference CSS variables from `src/assets/base.css`:
 --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
 ```
 
-## Import Order
+## 导入顺序
 
-1. **External libraries** (vue, vue-router, pinia, echarts)
-2. **Internal absolute imports** (`@/types/`, `@/stores/`, `@/utils/`, `@/components/`)
-3. **Relative imports** (local modules, same directory)
+1. **外部库**（vue、vue-router、pinia、echarts）
+2. **内部绝对路径**（`@/types/`、`@/stores/`、`@/utils/`、`@/components/`）
+3. **相对路径**（本地模块，同目录）
 
 ```typescript
-// ✅ Correct order
+// ✅ 正确顺序
 import { ref, computed, onMounted } from 'vue'
 import type { StockData } from '@/types/stock'
 import { useStockListStore } from '@/stores/stockListStore'
 import { logger } from '@/utils/logger'
 import StockCard from './StockCard.vue'
 
-// ❌ Wrong order (mixed)
+// ❌ 错误顺序（混排）
 import StockCard from './StockCard.vue'
 import { ref } from 'vue'
 import { useStockListStore } from '@/stores/stockListStore'
 ```
 
-## Error Handling in Components
+## 组件中的错误处理
 
 ```vue
 <script setup lang="ts">
@@ -107,43 +107,43 @@ const uiStore = useStockUIStore()
 
 async function loadData() {
   try {
-    // Store handles its own loading state
+    // Store 自行管理加载状态
     await someStoreAction()
   } catch (err) {
-    // Log with structured logger, not console
-    logger.error('MyComponent', 'Failed to load data', { error: err })
-    // Store error state is managed by stockUIStore
+    // 使用结构化日志，不要用 console
+    logger.error('MyComponent', '加载数据失败', { error: err })
+    // 错误状态由 stockUIStore 管理
   }
 }
 </script>
 ```
 
-## Loading States
+## 加载状态
 
-Loading state is centralized in `stockUIStore`:
+加载状态集中在 `stockUIStore` 中：
 
 ```vue
 <template>
   <div v-if="uiStore.loading" class="loading-spinner">
-    Loading...
+    加载中...
   </div>
   <div v-else-if="uiStore.error" class="error-banner">
     {{ uiStore.error }}
-    <button @click="uiStore.clearError">Dismiss</button>
+    <button @click="uiStore.clearError">关闭</button>
   </div>
   <div v-else>
-    <!-- Content -->
+    <!-- 内容 -->
   </div>
 </template>
 ```
 
-## Responsive Design
+## 响应式设计
 
-Use CSS media queries with mobile-first approach:
+使用移动优先的 CSS 媒体查询：
 
 ```css
 .component {
-  /* Mobile first (default) */
+  /* 移动优先（默认） */
   padding: var(--spacing-sm);
 }
 
