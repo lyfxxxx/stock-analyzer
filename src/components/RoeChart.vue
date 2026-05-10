@@ -32,6 +32,7 @@ use([BarChart, GridComponent, TooltipComponent, CanvasRenderer])
 const props = defineProps<{
   title?: string
   yearlyData: YearlyData[]
+  forecastRoe?: number | null
 }>()
 
 const { isDark } = useTheme()
@@ -104,20 +105,21 @@ function updateChart() {
   // Sort data by year
   const sortedData = [...props.yearlyData].sort((a, b) => a.year - b.year)
 
-  // Try to predict next year ROE
-  const prediction = predictNextYearROE(sortedData)
+  // Apply forecastRoe to the latest year's data if provided (estimated full-year ROE from partial report)
+  // This replaces the partial-year value with the projected full-year estimate at the SAME year
+  if (props.forecastRoe != null && sortedData.length > 0) {
+    const lastIdx = sortedData.length - 1
+    const lastItem = sortedData[lastIdx]
+    if (lastItem) {
+      lastItem.roe = props.forecastRoe
+      lastItem.isProjected = true
+    }
+  }
+  // NOTE: We do NOT predict future years. The forecastRoe represents the current year's
+  // estimated full-year ROE, not a future year's prediction.
 
   // Build chart data
-  const chartData = [...sortedData]
-  if (prediction) {
-    chartData.push({
-      year: prediction.year,
-      roe: prediction.roe,
-      isProjected: true,
-      freeCashFlow: 0,
-      netProfit: 0
-    })
-  }
+  const chartData = sortedData
 
   const years = chartData.map(d => d.year.toString())
   const roeValues = chartData.map(d => d.roe ?? 0)

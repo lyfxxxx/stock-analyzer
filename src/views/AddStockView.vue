@@ -308,145 +308,15 @@
 
         <!-- Preview Section -->
         <div v-if="previewData" class="preview-section">
-          <!-- API Success Banner -->
           <div v-if="dataSourceMode === 'api'" class="api-success-banner">
             <span class="success-icon">✓</span>
             <span>已从API成功获取数据</span>
           </div>
-
           <h2>分析结果预览</h2>
-
-          <div class="currency-selector">
-            <label>显示币种：</label>
-            <select v-model="displayCurrency" class="form-select">
-              <option value="HKD">港元 (HK$)</option>
-              <option value="CNY">人民币 (¥)</option>
-              <option value="USD">美元 ($)</option>
-            </select>
-          </div>
-
-          <div class="valuation-cards">
-            <div class="valuation-card">
-              <span class="val-label">当前市值</span>
-              <span class="val-value">{{ formatDisplayCurrency(previewData.marketCap) }}</span>
-            </div>
-            <div class="valuation-card">
-              <span class="val-label">净现金</span>
-              <span class="val-value">{{ formatDisplayCurrency(previewData.netCash) }}</span>
-            </div>
-            <div class="valuation-card" :class="{ 'projected': previewData.isUsingProjectedData }">
-              <span class="val-label">
-                自由现金流
-                <span v-if="previewData.isUsingProjectedData" class="projected-badge">预测</span>
-              </span>
-              <span class="val-value">{{ formatDisplayCurrency(previewData.freeCashFlow) }}</span>
-            </div>
-            <div class="valuation-card" :class="{ 'projected': previewData.isUsingProjectedData }">
-              <span class="val-label">
-                净利润
-                <span v-if="previewData.isUsingProjectedData" class="projected-badge">预测</span>
-              </span>
-              <span class="val-value">{{ formatDisplayCurrency(previewData.netProfit) }}</span>
-            </div>
-            <div class="valuation-card highlight" :class="{ 'projected': previewData.isUsingProjectedData }">
-              <span class="val-label">
-                估值1 (市值-净现金)/自由现金流
-                <span v-if="previewData.isUsingProjectedData" class="projected-badge">预测</span>
-              </span>
-              <span class="val-value">
-                <template v-if="previewData.valuation1 !== null">
-                  {{ previewData.valuation1.toFixed(2) }}
-                </template>
-                <template v-else>
-                  <span class="na-value">N/A</span>
-                  <span class="tooltip-trigger">
-                    ⓘ
-                    <span class="tooltip-text">自由现金流为负时不计算估值</span>
-                  </span>
-                </template>
-              </span>
-            </div>
-            <div class="valuation-card highlight" :class="{ 'projected': previewData.isUsingProjectedData }">
-              <span class="val-label">
-                估值2 (市值-净现金)/净利润
-                <span v-if="previewData.isUsingProjectedData" class="projected-badge">预测</span>
-              </span>
-              <span class="val-value">{{ previewData.valuation2.toFixed(2) }}</span>
-            </div>
-            <!-- PRR Card -->
-            <div v-if="previewData.prrBase !== null || previewData.prrAdjusted !== null || previewData.prrCycle !== null || previewData.prrIndex !== null || previewData.prrDerived !== null" class="valuation-card prr-card" data-testid="add-stock-prr-card">
-              <span class="val-label">
-                市赚率 (PRR)
-                <span class="info-trigger">ⓘ
-                  <span class="info-text">{{ getPrrFormulaDescription(previewData.prrSelectedFormula || 'base') }}：{{ getPrrFormulaText(previewData.prrSelectedFormula || 'base') }}</span>
-                </span>
-              </span>
-              <span class="val-value prr-value" :class="getPrrDisplayClass(previewData.prrSelectedFormula || 'base')">
-                {{ getPrrDisplayValue(previewData.prrSelectedFormula || 'base') }}
-              </span>
-              <span class="prr-formula-text">{{ getPrrFormulaText(previewData.prrSelectedFormula || 'base') }}</span>
-            </div>
-            <!-- ROE Card -->
-            <div v-if="previewData.roe != null" class="valuation-card metric-card">
-              <span class="val-label">
-                ROE
-                <span class="info-trigger">ⓘ
-                  <span class="info-text">净资产收益率 = 净利润 / 股东权益 × 100%</span>
-                </span>
-              </span>
-              <span class="val-value">{{ previewData.roe.toFixed(2) }}%</span>
-            </div>
-            <!-- ROA Card -->
-            <div v-if="previewData.roa != null" class="valuation-card metric-card">
-              <span class="val-label">
-                ROA
-                <span class="info-trigger">ⓘ
-                  <span class="info-text">资产收益率 = 净利润 / 总资产 × 100%</span>
-                </span>
-              </span>
-              <span class="val-value">{{ previewData.roa.toFixed(2) }}%</span>
-            </div>
-            <!-- PB Card -->
-            <div v-if="previewData.pbRatio != null" class="valuation-card metric-card">
-              <span class="val-label">
-                PB
-                <span class="info-trigger">ⓘ
-                  <span class="info-text">市净率 = 市值 / 账面价值</span>
-                </span>
-              </span>
-              <span class="val-value">{{ previewData.pbRatio.toFixed(2) }}x</span>
-            </div>
-            <!-- 股息支付率 Card -->
-            <div v-if="previewData.dividendPayoutRatio != null" class="valuation-card metric-card">
-              <span class="val-label">
-                股息支付率
-                <span class="info-trigger">ⓘ
-                  <span class="info-text">股息支付率 = 股息 / 净利润 × 100%</span>
-                </span>
-              </span>
-              <span class="val-value">{{ (previewData.dividendPayoutRatio > 1 ? previewData.dividendPayoutRatio : previewData.dividendPayoutRatio * 100).toFixed(1) }}%</span>
-            </div>
-          </div>
-
-          <div class="charts-grid">
-            <ValuationChart
-              title="自由现金流趋势"
-              :yearly-data="previewData.yearlyData"
-              data-type="freeCashFlow"
-              :display-currency="displayCurrency"
-              :exchange-rates="exchangeRates"
-              :source-currency="previewData.baseCurrency"
-            />
-            <ValuationChart
-              title="净利润趋势"
-              :yearly-data="previewData.yearlyData"
-              data-type="netProfit"
-              :display-currency="displayCurrency"
-              :exchange-rates="exchangeRates"
-              :source-currency="previewData.baseCurrency"
-            />
-          </div>
-
+          <StockDetailView 
+            :preview-mode="true" 
+            :preview-data="previewData as any"
+          />
           <div class="save-actions">
             <button @click="saveStock" :disabled="saving" class="save-button">
               {{ saving ? '保存中...' : '确认保存' }}
@@ -475,6 +345,7 @@ import type { ExcelData, StockAnalysisResult, CurrencyType } from '@/types/stock
 import type { PRRFormulaType } from '@/types/prr'
 import ExcelUploader from '@/components/ExcelUploader.vue'
 import ValuationChart from '@/components/ValuationChart.vue'
+import StockDetailView from '@/views/StockDetailView.vue'
 
 type DataSourceMode = 'api' | 'manual'
 
@@ -806,7 +677,7 @@ async function fetchFinancialData() {
     }
 
     // Step 2: Get financial report data
-    const reportData = await stockStore.fetchFinancialReport(form.code, form.market, form.marketCap)
+    const reportData = await stockStore.fetchFinancialReport(form.code, form.market, form.marketCap, stockInfo?.pbRatio)
 
     if (reportData) {
       previewData.value = {

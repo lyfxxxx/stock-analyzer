@@ -7,7 +7,7 @@
     </div>
 
     <!-- Sub-header -->
-    <div class="sub-header">
+    <div v-if="!previewMode" class="sub-header">
       <div class="sub-header-inner">
         <button class="back-button" @click="goBack">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
@@ -254,7 +254,7 @@
       </section>
 
       <!-- Target Price -->
-      <section class="section-card">
+      <section v-if="!previewMode" class="section-card">
         <h2 class="section-title">目标价</h2>
         <div v-if="targetPriceResult.error" class="target-price-error">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -327,6 +327,7 @@
         <RoeChart
           title="ROE趋势"
           :yearly-data="stock.yearlyData"
+          :forecast-roe="stock.roeProjected ? stock.roe : null"
         />
         <DividendChart
           title="股息支付率趋势"
@@ -382,7 +383,7 @@
       </section>
 
       <!-- Actions -->
-      <div class="actions-section">
+      <div v-if="!previewMode" class="actions-section">
         <button @click="deleteStock" :disabled="deleting" class="delete-btn">
           {{ deleting ? '删除中...' : '删除此股票' }}
         </button>
@@ -401,7 +402,7 @@
 
     <!-- Target Price Config Modal -->
     <TargetPriceConfig
-      v-if="stock"
+      v-if="stock && !previewMode"
       :stock-id="stock.id"
       v-model:visible="showTargetPriceConfig"
       :initial-config="stock.targetPriceConfig"
@@ -430,6 +431,11 @@ import { logger } from '@/utils/logger'
 import { getValuationLevel, formatYi } from '@/utils/formatters'
 import { formatPRR, getPrrValuationText, getPrrFormulaText, getPrrFormulaDescription, getPrrFormulaWithValues, getPrrValuationBgClass, getPrrValuationTextClass, getPrrValuationLevel } from '@/utils/prr-formatter'
 
+const props = defineProps<{
+  previewMode?: boolean
+  previewData?: StockData | null
+}>()
+
 type CurrencyType = 'HKD' | 'CNY' | 'USD' | 'OTHER'
 
 const router = useRouter()
@@ -437,8 +443,8 @@ const route = useRoute()
 const stockStore = useStockStore()
 const stockListStore = useStockListStore()
 
-const stock = ref<StockData | null>(null)
-const loading = ref(true)
+const stock = ref<StockData | null>(props.previewData ?? null)
+const loading = ref(!props.previewData)
 const deleting = ref(false)
 const displayCurrency = ref<CurrencyType>('HKD')
 // Exchange rates based on HKD (API format): 1 HKD = X currency
@@ -450,13 +456,14 @@ const exchangeRates = ref<Record<string, number>>({
 const sortOrder = ref<'asc' | 'desc'>('desc')
 const showTargetPriceConfig = ref(false)
 
-const isThisStockUpdating = computed(() =>
-  stock.value ? stockStore.currentlyUpdatingIds.has(stock.value.id) : false
-)
+const isThisStockUpdating = computed(() => {
+  if (props.previewMode || !stock.value) return false
+  return stockStore.currentlyUpdatingIds.has(stock.value.id)
+})
 
 // Target price
 const targetPriceResult = computed(() => {
-  if (!stock.value) return { price: null as number | null, error: null as string | null }
+  if (props.previewMode || !stock.value) return { price: null as number | null, error: null as string | null }
   return stockStore.getTargetPrice(stock.value.id)
 })
 
@@ -469,12 +476,11 @@ function openTargetPriceConfig() {
 }
 
 function onTargetPriceSaved() {
+  if (props.previewMode || !stock.value) return
   // Refresh stock data after target price config is saved
-  if (stock.value) {
-    stockStore.getStockById(stock.value.id).then(updated => {
-      if (updated) stock.value = updated
-    })
-  }
+  stockStore.getStockById(stock.value.id).then(updated => {
+    if (updated) stock.value = updated
+  })
 }
 
 // PRR valuation
@@ -521,7 +527,7 @@ const prrFormulaOptions = computed(() => {
 })
 
 async function selectPrrFormula(formula: PRRFormulaType) {
-  if (!stock.value) return
+  if (props.previewMode || !stock.value) return
   try {
     await stockListStore.updatePrrFormula(stock.value.id, formula)
     // Refresh stock data
@@ -546,6 +552,12 @@ const currencyUnit = computed(() => {
 })
 
 onMounted(async () => {
+  // In preview mode with previewData, skip DB loading
+  if (props.previewData) {
+    displayCurrency.value = (props.previewData.baseCurrency as CurrencyType) || (props.previewData.market === 'A' ? 'CNY' : 'HKD')
+    return
+  }
+
   const id = route.params.id as string
   try {
     stock.value = await stockStore.getStockById(id)

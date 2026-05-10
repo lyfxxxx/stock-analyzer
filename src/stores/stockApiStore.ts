@@ -260,7 +260,7 @@ export const useStockApiStore = defineStore('stockApi', () => {
           roe: prrIndicators.roe,
           pbRatio: prrIndicators.pb ?? undefined,
           dividendPayoutRatio: prrIndicators.dividendPayoutRatio != null
-            ? prrIndicators.dividendPayoutRatio * 100
+            ? (prrIndicators.dividendPayoutRatio <= 1 ? prrIndicators.dividendPayoutRatio * 100 : prrIndicators.dividendPayoutRatio)
             : undefined,
           roa: prrIndicators.roa ?? undefined,
         }
