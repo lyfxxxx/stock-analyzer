@@ -52,72 +52,49 @@
                 </div>
               </div>
 
-              <!-- Target PR Slider -->
+              <!-- Buy Target PR Slider -->
               <div class="config-section">
                 <div class="slider-header">
-                  <label class="section-label">目标 PR</label>
-                  <div class="slider-value-wrapper">
-                    <input
-                      type="number"
-                      class="pr-input font-mono-nums"
-                      v-model.number="localTargetPR"
-                      :min="0.1"
-                      :max="2.0"
-                      :step="0.01"
-                    />
-                    <span class="pr-unit">PR</span>
-                  </div>
+                  <label class="section-label">买入目标 PR</label>
+                  <span class="slider-value font-mono-nums">{{ localBuyTargetPR.toFixed(2) }}PR</span>
                 </div>
                 <div class="slider-container">
                   <input
                     type="range"
                     class="valuation-slider"
                     :min="0.1"
-                    :max="2.0"
-                    :step="0.01"
-                    v-model.number="localTargetPR"
+                    :max="5.0"
+                    :step="0.05"
+                    v-model.number="localBuyTargetPR"
                   />
                   <div class="slider-labels">
                     <span>0.1</span>
-                    <span>1.0</span>
-                    <span>2.0</span>
+                    <span>2.5</span>
+                    <span>5.0</span>
                   </div>
                 </div>
+              </div>
 
-                <!-- Quick Preset Buttons -->
-                <div class="preset-buttons">
-                  <button
-                    class="preset-btn"
-                    :class="{ 'is-active': Math.abs(localTargetPR - 0.4) < 0.005 }"
-                    @click="localTargetPR = 0.4"
-                    type="button"
-                  >
-                    0.4PR<span class="preset-desc">（4折）</span>
-                  </button>
-                  <button
-                    class="preset-btn"
-                    :class="{ 'is-active': Math.abs(localTargetPR - 0.5) < 0.005 }"
-                    @click="localTargetPR = 0.5"
-                    type="button"
-                  >
-                    0.5PR<span class="preset-desc">（5折）</span>
-                  </button>
-                  <button
-                    class="preset-btn"
-                    :class="{ 'is-active': Math.abs(localTargetPR - 0.6) < 0.005 }"
-                    @click="localTargetPR = 0.6"
-                    type="button"
-                  >
-                    0.6PR<span class="preset-desc">（6折）</span>
-                  </button>
-                  <button
-                    class="preset-btn"
-                    :class="{ 'is-active': Math.abs(localTargetPR - 1.0) < 0.005 }"
-                    @click="localTargetPR = 1.0"
-                    type="button"
-                  >
-                    1.0PR<span class="preset-desc">（合理）</span>
-                  </button>
+              <!-- Sell Target PR Slider -->
+              <div class="config-section">
+                <div class="slider-header">
+                  <label class="section-label">卖出目标 PR</label>
+                  <span class="slider-value font-mono-nums">{{ localSellTargetPR.toFixed(2) }}PR</span>
+                </div>
+                <div class="slider-container">
+                  <input
+                    type="range"
+                    class="valuation-slider"
+                    :min="0.1"
+                    :max="5.0"
+                    :step="0.05"
+                    v-model.number="localSellTargetPR"
+                  />
+                  <div class="slider-labels">
+                    <span>0.1</span>
+                    <span>2.5</span>
+                    <span>5.0</span>
+                  </div>
                 </div>
               </div>
 
@@ -185,6 +162,38 @@
                   <div class="comparison-item" :class="priceChangeClass">
                     <span class="comparison-label">空间</span>
                     <span class="comparison-value font-mono-nums">{{ priceChangeText }}</span>
+                  </div>
+                </div>
+
+                <!-- Buy/Sell Target Price Display -->
+                <div v-if="stock" class="buy-sell-result">
+                  <!-- Buy Price -->
+                  <div v-if="buyPrice !== null" class="buy-sell-row">
+                    <div class="buy-sell-info">
+                      <span class="bs-label buy">买入价</span>
+                      <span class="bs-price font-mono-nums">{{ buyPrice.toFixed(2) }}</span>
+                      <span class="bs-unit">{{ priceUnit }}</span>
+                    </div>
+                    <span v-if="currentPrice !== null"
+                          :class="buyPriceChangePercent !== null && buyPriceChangePercent >= 0 ? 'text-positive' : 'text-negative'"
+                          class="bs-change font-mono-nums">
+                      {{ buyPriceChangePercent !== null ? (buyPriceChangePercent >= 0 ? '+' : '') + buyPriceChangePercent.toFixed(1) + '%' : '-' }}
+                    </span>
+                    <span class="bs-multiplier">{{ localBuyTargetPR.toFixed(2) }}PR</span>
+                  </div>
+                  <!-- Sell Price -->
+                  <div v-if="sellPrice !== null" class="buy-sell-row">
+                    <div class="buy-sell-info">
+                      <span class="bs-label sell">卖出价</span>
+                      <span class="bs-price font-mono-nums">{{ sellPrice.toFixed(2) }}</span>
+                      <span class="bs-unit">{{ priceUnit }}</span>
+                    </div>
+                    <span v-if="currentPrice !== null"
+                          :class="sellPriceChangePercent !== null && sellPriceChangePercent >= 0 ? 'text-positive' : 'text-negative'"
+                          class="bs-change font-mono-nums">
+                      {{ sellPriceChangePercent !== null ? (sellPriceChangePercent >= 0 ? '+' : '') + sellPriceChangePercent.toFixed(1) + '%' : '-' }}
+                    </span>
+                    <span class="bs-multiplier">{{ localSellTargetPR.toFixed(2) }}PR</span>
                   </div>
                 </div>
               </div>
@@ -266,6 +275,8 @@ let resizeHandler: (() => void) | null = null
 // Local state
 const localFormulaType = ref<PRRFormulaType>('base')
 const localTargetPR = ref(0.5)
+const localBuyTargetPR = ref(0.5)
+const localSellTargetPR = ref(1.0)
 const showFormula = ref(false)
 
 // Formula options
@@ -331,14 +342,27 @@ watch(() => props.visible, (isVisible) => {
   }
 }, { immediate: true })
 
+// Formula snap: auto-update buyTargetPR when formula type changes
+watch(localFormulaType, (newType) => {
+  const currentValue = getFormulaCurrentValue(newType)
+  if (currentValue !== null) {
+    localTargetPR.value = Math.round(currentValue * 100) / 100
+    localBuyTargetPR.value = Math.round(currentValue * 100) / 100
+  }
+})
+
 function initializeFromProps() {
   if (props.initialConfig) {
     localFormulaType.value = props.initialConfig.formulaType
     localTargetPR.value = props.initialConfig.targetPR
+    localBuyTargetPR.value = props.initialConfig.buyTargetPR ?? 0.5
+    localSellTargetPR.value = props.initialConfig.sellTargetPR ?? 1.0
   } else {
     // Defaults
     localFormulaType.value = 'base'
     localTargetPR.value = 0.5
+    localBuyTargetPR.value = 0.5
+    localSellTargetPR.value = 1.0
   }
 }
 
@@ -364,17 +388,17 @@ const targetMarketValue = computed(() => {
   if (!stock.value) return null
   if (stock.value.roe === null || stock.value.roe === undefined) return null
   if (stock.value.netProfit === null || stock.value.netProfit === 0) return null
-  return localTargetPR.value * stock.value.roe * stock.value.netProfit
+  return localBuyTargetPR.value * stock.value.roe * stock.value.netProfit
 })
 
-// Calculation result
+// Calculation result (now uses buy price as the primary)
 const calculationResult = computed(() => {
   if (!stock.value) {
     return { price: null as number | null, error: null as PRRTargetPriceError | null }
   }
 
   return calculatePRRTargetPrice({
-    targetPR: localTargetPR.value,
+    targetPR: localBuyTargetPR.value,
     roe: stock.value.roe ?? null,
     netProfit: stock.value.netProfit ?? null,
     totalShares: stock.value.totalShares ?? null
@@ -407,7 +431,7 @@ const formulaCalcText = computed(() => {
   const roe = stock.value.roe ?? null
   const netProfit = stock.value.netProfit ?? null
   if (roe === null || netProfit === null) return '-'
-  return `${localTargetPR.value.toFixed(2)} × ${roe.toFixed(2)}% × ${formatYi(netProfit)}`
+  return `${localBuyTargetPR.value.toFixed(2)} × ${roe.toFixed(2)}% × ${formatYi(netProfit)}`
 })
 
 // Price change comparison
@@ -431,6 +455,50 @@ const priceChangeClass = computed(() => {
   return ''
 })
 
+// Buy target price calculation
+const buyCalcResult = computed(() => {
+  if (!stock.value) {
+    return { price: null as number | null, error: null as PRRTargetPriceError | null }
+  }
+  return calculatePRRTargetPrice({
+    targetPR: localBuyTargetPR.value,
+    roe: stock.value.roe ?? null,
+    netProfit: stock.value.netProfit ?? null,
+    totalShares: stock.value.totalShares ?? null
+  })
+})
+
+const buyPrice = computed(() => buyCalcResult.value.price)
+
+const buyPriceChangePercent = computed(() => {
+  if (buyPrice.value === null || currentPrice.value === null || currentPrice.value === 0) {
+    return null
+  }
+  return ((buyPrice.value - currentPrice.value) / currentPrice.value) * 100
+})
+
+// Sell target price calculation
+const sellCalcResult = computed(() => {
+  if (!stock.value) {
+    return { price: null as number | null, error: null as PRRTargetPriceError | null }
+  }
+  return calculatePRRTargetPrice({
+    targetPR: localSellTargetPR.value,
+    roe: stock.value.roe ?? null,
+    netProfit: stock.value.netProfit ?? null,
+    totalShares: stock.value.totalShares ?? null
+  })
+})
+
+const sellPrice = computed(() => sellCalcResult.value.price)
+
+const sellPriceChangePercent = computed(() => {
+  if (sellPrice.value === null || currentPrice.value === null || currentPrice.value === 0) {
+    return null
+  }
+  return ((sellPrice.value - currentPrice.value) / currentPrice.value) * 100
+})
+
 // Can confirm
 const canConfirm = computed(() => {
   if (calculationError.value) {
@@ -449,7 +517,9 @@ async function handleConfirm() {
     const config: PRRTargetPriceConfig = {
       enabled: true,
       formulaType: localFormulaType.value,
-      targetPR: localTargetPR.value
+      targetPR: localBuyTargetPR.value,
+      buyTargetPR: localBuyTargetPR.value,
+      sellTargetPR: localSellTargetPR.value
     }
 
     await stockListStore.updatePrrTargetPriceConfig(props.stockId, config)

@@ -140,23 +140,30 @@
             <template v-if="stock.pbRatio != null">{{ stock.pbRatio.toFixed(2) }}</template>
             <template v-else><span class="na-text">-</span></template>
           </td>
-          <td class="col-target-price" style="position: relative;">
-            <div class="target-price-cell" @click.stop="onTargetPriceClick(stock)">
-              <template v-if="getTargetPriceForStock(stock.id).error">
-                <span class="tp-error">{{ getTargetPriceErrorText(getTargetPriceForStock(stock.id).error) }}</span>
-              </template>
-              <template v-else-if="getTargetPriceForStock(stock.id).price !== null">
-                <span class="tp-price font-mono-nums">{{ getTargetPriceForStock(stock.id).price!.toFixed(2) }}</span>
+          <td class="col-target-price" @click.stop="editingTargetPriceId = stock.id">
+            <template v-if="getTargetPriceForStock(stock.id).error">
+              <span class="tp-error">{{ getTargetPriceErrorText(getTargetPriceForStock(stock.id).error) }}</span>
+            </template>
+            <template v-else-if="getTargetPriceForStock(stock.id).buyPrice !== null || getTargetPriceForStock(stock.id).sellPrice !== null">
+              <div class="tp-row">
+                <span class="tp-label">买</span>
+                <span class="tp-price font-mono-nums">{{ getTargetPriceForStock(stock.id).buyPrice!.toFixed(2) }}</span>
                 <span class="tp-unit">{{ stock.market === 'A' ? '元' : '港元' }}</span>
-              </template>
-              <template v-else>
+                <span class="tp-pct" :class="getBuyPctClass(stock)">{{ getBuyPctText(stock) }}</span>
+              </div>
+              <div class="tp-row">
+                <span class="tp-label">卖</span>
+                <span class="tp-price font-mono-nums">{{ getTargetPriceForStock(stock.id).sellPrice!.toFixed(2) }}</span>
+                <span class="tp-unit">{{ stock.market === 'A' ? '元' : '港元' }}</span>
+                <span class="tp-pct" :class="getSellPctClass(stock)">{{ getSellPctText(stock) }}</span>
+              </div>
+            </template>
+            <template v-else>
+              <div class="tp-unset">
                 <span class="tp-unconfigured">未设置</span>
                 <span class="tp-hint">点击配置</span>
-              </template>
-            </div>
-            <div v-if="targetPriceMenuStockId === stock.id" class="tp-mini-menu" @click.stop>
-              <div class="tp-mini-menu-item" @click="openTargetPriceConfig(stock.id)">配置目标价</div>
-            </div>
+              </div>
+            </template>
           </td>
           <td class="col-number font-mono-nums">
             <span :class="stock.netCash >= 0 ? 'text-positive' : 'text-negative'">{{ formatYi(stock.netCash) }}</span>
@@ -209,7 +216,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'click', stock: StockData): void
-  (e: 'config-target', stockId: string): void
 }>()
 
 const sortKey = ref<'name' | 'marketCap' | 'netCash' | 'freeCashFlow' | 'netProfit' | 'valuation1' | 'valuation2' | 'peRatio' | 'currentRatio' | 'prr' | 'roe' | 'roa' | 'dividendPayoutRatio' | 'pbRatio'>('name')
@@ -364,6 +370,40 @@ function getInitialTargetPriceConfig(id: string) {
   return stock?.targetPriceConfig ?? null
 }
 
+function getCurrentPrice(stock: StockData): number | null {
+  return stock.totalShares ? stock.marketCap / stock.totalShares : null
+}
+
+function getBuyPctClass(stock: StockData): string {
+  const tp = getTargetPriceForStock(stock.id)
+  const currentPrice = getCurrentPrice(stock)
+  if (tp.buyPrice === null || currentPrice === null) return ''
+  return tp.buyPrice >= currentPrice ? 'tp-pct-positive' : 'tp-pct-negative'
+}
+
+function getBuyPctText(stock: StockData): string {
+  const tp = getTargetPriceForStock(stock.id)
+  const currentPrice = getCurrentPrice(stock)
+  if (tp.buyPrice === null || currentPrice === null) return ''
+  const pct = ((tp.buyPrice - currentPrice) / currentPrice) * 100
+  return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`
+}
+
+function getSellPctClass(stock: StockData): string {
+  const tp = getTargetPriceForStock(stock.id)
+  const currentPrice = getCurrentPrice(stock)
+  if (tp.sellPrice === null || currentPrice === null) return ''
+  return tp.sellPrice >= currentPrice ? 'tp-pct-positive' : 'tp-pct-negative'
+}
+
+function getSellPctText(stock: StockData): string {
+  const tp = getTargetPriceForStock(stock.id)
+  const currentPrice = getCurrentPrice(stock)
+  if (tp.sellPrice === null || currentPrice === null) return ''
+  const pct = ((tp.sellPrice - currentPrice) / currentPrice) * 100
+  return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`
+}
+
 // PRR formula dropdown state
 const prrDropdownStockId = ref<string | null>(null)
 const prrFormulaOptions: Array<{ value: PRRFormulaType; label: string; expr: string }> = [
@@ -383,19 +423,6 @@ async function selectPrrFormula(stockId: string, formula: PRRFormulaType) {
   await stockListStore.updatePrrFormula(stockId, formula)
 }
 
-// Target price mini menu state
-const targetPriceMenuStockId = ref<string | null>(null)
-
-function onTargetPriceClick(stock: StockData) {
-  targetPriceMenuStockId.value = stock.id
-}
-
-function openTargetPriceConfig(stockId: string) {
-  targetPriceMenuStockId.value = null
-  emit('config-target', stockId)
-  editingTargetPriceId.value = stockId
-}
-
 function getInitialPrrTargetPriceConfig(id: string): PRRTargetPriceConfig | null {
   const stock = stockListStore.stocks.find(s => s.id === id)
   return stock?.prrTargetPriceConfig ?? null
@@ -407,7 +434,6 @@ function onTargetPriceSaved() {
 
 function onDocumentClick() {
   prrDropdownStockId.value = null
-  targetPriceMenuStockId.value = null
 }
 
 onMounted(() => {
@@ -517,7 +543,11 @@ onUnmounted(() => {
   background-color: transparent;
 }
 
-.table-row:hover .col-target-price .target-price-cell {
+.table-row:hover .col-target-price .tp-row {
+  background-color: var(--bg-tertiary);
+}
+
+.table-row:hover .col-target-price .tp-unset {
   background-color: var(--bg-tertiary);
 }
 
@@ -597,9 +627,67 @@ onUnmounted(() => {
 .val-text.val-na { color: var(--val-na) !important; }
 
 /* Target price column */
-.col-target-price { width: 120px; text-align: left; }
+.col-target-price {
+  width: 140px;
+  text-align: left;
+  cursor: pointer;
+}
 
-.target-price-cell {
+.tp-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 6px;
+  border-radius: var(--radius-md, 6px);
+  transition: background-color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.tp-row + .tp-row {
+  margin-top: 2px;
+}
+
+.tp-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-right: 1px;
+}
+
+.tp-price {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand-primary);
+}
+
+.tp-unit {
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
+.tp-pct {
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tp-pct-positive {
+  color: var(--val-low);
+}
+
+.tp-pct-negative {
+  color: var(--val-negative);
+}
+
+.tp-error {
+  font-size: 11px;
+  color: var(--color-danger);
+  padding: 4px 6px;
+  display: block;
+}
+
+.tp-unset {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -607,28 +695,7 @@ onUnmounted(() => {
   padding: 4px 6px;
   border-radius: var(--radius-md, 6px);
   transition: background-color var(--transition-fast);
-  min-height: 24px;
   background-color: var(--bg-secondary);
-}
-
-.target-price-cell:hover {
-  background-color: var(--bg-tertiary);
-}
-
-.tp-price {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--brand-primary);
-}
-
-.tp-unit {
-  font-size: 10px;
-  color: var(--text-muted);
-}
-
-.tp-error {
-  font-size: 11px;
-  color: var(--color-danger);
 }
 
 .tp-unconfigured {
@@ -722,35 +789,6 @@ onUnmounted(() => {
   font-family: var(--font-mono, monospace);
 }
 
-/* Target price mini menu */
-.tp-mini-menu {
-  position: absolute;
-  top: calc(100% + 2px);
-  left: 0;
-  z-index: 100;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  min-width: 150px;
-  padding: 4px 0;
-}
-
-.tp-mini-menu-item {
-  padding: 10px 14px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: background-color var(--transition-fast), color var(--transition-fast);
-  white-space: nowrap;
-}
-
-.tp-mini-menu-item:hover {
-  background-color: var(--bg-secondary);
-  color: var(--brand-primary);
-}
-
 @media (max-width: 1024px) {
   .stock-table {
     font-size: 12px;
@@ -765,7 +803,7 @@ onUnmounted(() => {
   .col-number { width: 85px; }
   .col-valuation { width: 100px; }
   .col-date { width: 75px; }
-  .col-target-price { width: 100px; }
+  .col-target-price { width: 120px; }
   .val-cell { padding: 3px 6px; min-width: 45px; }
 }
 

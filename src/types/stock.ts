@@ -6,6 +6,10 @@ export interface TargetPriceConfig {
   enabled: boolean
   valuationType: 1 | 2
   targetValuation: number
+  /** 目标买入价倍数，默认 10 倍 */
+  buyTargetValuation?: number
+  /** 目标卖出价倍数，默认 20 倍 */
+  sellTargetValuation?: number
 }
 
 export interface StockData {

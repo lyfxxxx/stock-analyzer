@@ -30,4 +30,8 @@ export interface PRRTargetPriceConfig {
   enabled: boolean
   formulaType: PRRFormulaType
   targetPR: number
+  /** 目标买入价 PR，默认 0.5 */
+  buyTargetPR?: number
+  /** 目标卖出价 PR，默认 1.0 */
+  sellTargetPR?: number
 }

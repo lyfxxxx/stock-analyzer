@@ -265,38 +265,84 @@
           <span>{{ targetPriceResult.error }}</span>
         </div>
         <div v-else-if="targetPriceResult.price !== null" class="target-price-result">
-          <div class="target-price-display">
-            <span class="target-price-value font-mono-nums">{{ targetPriceResult.price.toFixed(2) }}</span>
+          <!-- Current stock price -->
+          <div v-if="currentPrice !== null" class="current-price-row">
+            <span class="price-label">当前价</span>
+            <span class="price-value font-mono-nums">{{ currentPrice.toFixed(2) }}</span>
             <span class="target-price-unit">{{ targetPriceUnit }}</span>
           </div>
-          <!-- PRR Target Price Formula -->
-          <template v-if="stock?.prrTargetPriceConfig?.enabled">
-            <div class="target-price-formula">
-              <span class="formula-label">PRR 目标价 = targetPR × ROE × 净利润 / 总股本</span>
-              <span class="formula-multiplier">{{ stock.prrTargetPriceConfig.targetPR.toFixed(1) }}PR</span>
-            </div>
-            <div class="target-price-note">
-              <span class="note-icon">ⓘ</span>
-              <span class="note-text">
-                目标市值 = {{ stock.prrTargetPriceConfig.targetPR.toFixed(2) }}PR × {{ stock.roe?.toFixed(1) ?? '-' }}% × {{ formatYi(stock.netProfit) }} = {{ formatYi(targetPriceResult.price * (stock.totalShares ?? 0)) }}
+
+          <!-- Buy Target Price -->
+          <div class="target-price-row">
+            <div class="target-price-main">
+              <div class="target-price-info">
+                <span class="price-label buy">买入目标价</span>
+                <span class="price-value font-mono-nums">{{ (targetPriceResult.buyPrice ?? targetPriceResult.price).toFixed(2) }}</span>
+                <span class="target-price-unit">{{ targetPriceUnit }}</span>
+              </div>
+              <span v-if="currentPrice !== null && targetPriceResult.buyPrice !== null"
+                    :class="targetPriceResult.buyPrice >= currentPrice ? 'text-positive' : 'text-negative'">
+                {{ ((targetPriceResult.buyPrice - currentPrice) / currentPrice * 100).toFixed(1) }}%
               </span>
             </div>
-          </template>
-          <!-- Traditional Target Price Formula -->
-          <template v-else>
-            <div class="target-price-formula">
-              <span class="formula-label">{{ stock?.targetPriceConfig?.valuationType === 1 ? '现金流折现' : '市盈率' }} × {{ stock?.targetPriceConfig?.valuationType === 1 ? 'FCF' : '净利润' }}</span>
-              <span class="formula-multiplier">{{ stock?.targetPriceConfig?.targetValuation?.toFixed(1) }}x</span>
-            </div>
-            <div class="target-price-note">
-              <span class="note-icon">ⓘ</span>
-              <span class="note-text">
-                目标价 = 目标估值倍数 × {{ stock?.targetPriceConfig?.valuationType === 1 ? '自由现金流' : '净利润' }}
-                <template v-if="stock?.currentRatio === null || stock?.currentRatio >= 1.5"> + 净现金</template>
-                ÷ 总股本
+            <!-- PRR Target Price Formula -->
+            <template v-if="stock?.prrTargetPriceConfig?.enabled">
+              <div class="target-price-formula">
+                <span class="formula-label">PRR 目标价 = targetPR × ROE × 净利润 / 总股本</span>
+                <span class="formula-multiplier">{{ (stock.prrTargetPriceConfig.buyTargetPR ?? stock.prrTargetPriceConfig.targetPR).toFixed(1) }}PR</span>
+              </div>
+              <div class="target-price-note">
+                <span class="note-icon">ⓘ</span>
+                <span class="note-text">
+                  目标市值 = {{ (stock.prrTargetPriceConfig.buyTargetPR ?? stock.prrTargetPriceConfig.targetPR).toFixed(2) }}PR × {{ stock.roe?.toFixed(1) ?? '-' }}% × {{ formatYi(stock.netProfit) }} = {{ formatYi((targetPriceResult.buyPrice ?? targetPriceResult.price) * (stock.totalShares ?? 0)) }}
+                </span>
+              </div>
+            </template>
+            <!-- Traditional Target Price Formula -->
+            <template v-else>
+              <div class="target-price-formula">
+                <span class="formula-label">{{ stock?.targetPriceConfig?.valuationType === 1 ? '现金流折现' : '市盈率' }} × {{ stock?.targetPriceConfig?.valuationType === 1 ? 'FCF' : '净利润' }}</span>
+                <span class="formula-multiplier">{{ (stock?.targetPriceConfig?.buyTargetValuation ?? stock?.targetPriceConfig?.targetValuation)?.toFixed(1) }}x</span>
+              </div>
+              <div class="target-price-note">
+                <span class="note-icon">ⓘ</span>
+                <span class="note-text">
+                  目标价 = 目标估值倍数 × {{ stock?.targetPriceConfig?.valuationType === 1 ? '自由现金流' : '净利润' }}
+                  <template v-if="stock?.currentRatio === null || stock?.currentRatio >= 1.5"> + 净现金</template>
+                  ÷ 总股本
+                </span>
+              </div>
+            </template>
+          </div>
+
+          <!-- Sell Target Price (only if different from buy) -->
+          <div v-if="targetPriceResult.sellPrice !== null && targetPriceResult.sellPrice !== (targetPriceResult.buyPrice ?? targetPriceResult.price)" class="target-price-row sell">
+            <div class="target-price-main">
+              <div class="target-price-info">
+                <span class="price-label sell">卖出目标价</span>
+                <span class="price-value font-mono-nums">{{ targetPriceResult.sellPrice.toFixed(2) }}</span>
+                <span class="target-price-unit">{{ targetPriceUnit }}</span>
+              </div>
+              <span v-if="currentPrice !== null"
+                    :class="targetPriceResult.sellPrice >= currentPrice ? 'text-positive' : 'text-negative'">
+                {{ ((targetPriceResult.sellPrice - currentPrice) / currentPrice * 100).toFixed(1) }}%
               </span>
             </div>
-          </template>
+            <!-- PRR Sell Formula -->
+            <template v-if="stock?.prrTargetPriceConfig?.enabled">
+              <div class="target-price-formula">
+                <span class="formula-label">PRR 目标价 = targetPR × ROE × 净利润 / 总股本</span>
+                <span class="formula-multiplier">{{ (stock.prrTargetPriceConfig.sellTargetPR ?? stock.prrTargetPriceConfig.targetPR).toFixed(1) }}PR</span>
+              </div>
+            </template>
+            <!-- Traditional Sell Formula -->
+            <template v-else>
+              <div class="target-price-formula">
+                <span class="formula-label">{{ stock?.targetPriceConfig?.valuationType === 1 ? '现金流折现' : '市盈率' }} × {{ stock?.targetPriceConfig?.valuationType === 1 ? 'FCF' : '净利润' }}</span>
+                <span class="formula-multiplier">{{ (stock?.targetPriceConfig?.sellTargetValuation ?? stock?.targetPriceConfig?.targetValuation)?.toFixed(1) }}x</span>
+              </div>
+            </template>
+          </div>
         </div>
         <div v-else class="target-price-unset">
           <span class="unset-text">未设置目标价</span>
@@ -463,8 +509,13 @@ const isThisStockUpdating = computed(() => {
 
 // Target price
 const targetPriceResult = computed(() => {
-  if (props.previewMode || !stock.value) return { price: null as number | null, error: null as string | null }
+  if (props.previewMode || !stock.value) return { price: null as number | null, buyPrice: null as number | null, sellPrice: null as number | null, error: null as string | null }
   return stockStore.getTargetPrice(stock.value.id)
+})
+
+const currentPrice = computed(() => {
+  if (!stock.value || !stock.value.totalShares || stock.value.totalShares === 0) return null
+  return stock.value.marketCap / stock.value.totalShares
 })
 
 const targetPriceUnit = computed(() => {
@@ -560,6 +611,8 @@ onMounted(async () => {
 
   const id = route.params.id as string
   try {
+    // Ensure stocks list is loaded for getTargetPrice() to work
+    await stockStore.loadStocks()
     stock.value = await stockStore.getStockById(id)
     if (stock.value) {
       displayCurrency.value = (stock.value.baseCurrency as CurrencyType) || (stock.value.market === 'A' ? 'CNY' : 'HKD')
@@ -936,6 +989,64 @@ function goBack() { router.push('/') }
   color: var(--text-muted);
 }
 
+/* Current price row at top */
+.current-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color, var(--bg-tertiary));
+}
+
+/* Target price block for buy/sell */
+.target-price-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.target-price-row.sell {
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color, var(--bg-tertiary));
+}
+
+/* Main row: label + price + diff */
+.target-price-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.target-price-info {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+/* Reusable price label */
+.price-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.price-label.buy {
+  color: var(--val-low, #22c55e);
+}
+.price-label.sell {
+  color: var(--val-negative, #ef4444);
+}
+
+/* Price value (current or target) */
+.price-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.price-value + .target-price-unit {
+  font-size: 14px;
+}
+
 .target-price-formula {
   display: flex;
   align-items: center;
@@ -1055,8 +1166,9 @@ function goBack() { router.push('/') }
   .valuation-grid { grid-template-columns: 1fr; }
   .charts-grid { grid-template-columns: 1fr; }
   .val-result { font-size: 28px; }
-  .target-price-value { font-size: 28px; }
-  .target-price-display { flex-wrap: wrap; }
+.target-price-value { font-size: 28px; }
+.price-value { font-size: 20px; }
+.target-price-display { flex-wrap: wrap; }
   .target-price-formula { flex-direction: column; gap: 6px; }
   .target-price-note { flex-direction: column; }
   .config-target-btn { width: 100%; justify-content: center; }

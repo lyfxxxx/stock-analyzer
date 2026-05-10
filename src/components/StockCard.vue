@@ -132,18 +132,37 @@
             <span v-if="showTargetTooltip" class="tooltip-popup">{{ getTargetPriceTooltip() }}</span>
           </span>
         </div>
-        <div class="target-price-value font-mono-nums">
-          <template v-if="targetPriceResult.error">
-            <span class="error-text">{{ getTargetPriceErrorText() }}</span>
-          </template>
-          <template v-else-if="targetPriceResult.price !== null">
-            <span class="price-num">{{ targetPriceResult.price.toFixed(2) }}</span>
-            <span class="price-unit">{{ stock.market === 'A' ? '元' : '港元' }}</span>
-          </template>
-          <template v-else>
-            <span class="na-text">--</span>
-          </template>
-        </div>
+        <template v-if="targetPriceResult.error">
+          <span class="error-text">{{ getTargetPriceErrorText() }}</span>
+        </template>
+        <template v-else-if="targetPriceResult.price !== null">
+          <div class="target-price-detail">
+            <div v-if="currentPrice !== null" class="tp-row">
+              <span class="tp-label">当前</span>
+              <span class="price-num font-mono-nums">{{ currentPrice.toFixed(2) }}</span>
+              <span class="price-unit">{{ priceUnit }}</span>
+            </div>
+            <div v-if="targetPriceResult.buyPrice !== null" class="tp-row">
+              <span class="tp-label">买入</span>
+              <span class="price-num font-mono-nums">{{ targetPriceResult.buyPrice.toFixed(2) }}</span>
+              <span class="price-unit">{{ priceUnit }}</span>
+              <span v-if="currentPrice !== null" class="tp-pct" :class="targetPriceResult.buyPrice >= currentPrice ? 'text-positive' : 'text-negative'">
+                {{ ((targetPriceResult.buyPrice - currentPrice) / currentPrice * 100).toFixed(1) }}%
+              </span>
+            </div>
+            <div v-if="targetPriceResult.sellPrice !== null && targetPriceResult.sellPrice !== (targetPriceResult.buyPrice ?? targetPriceResult.price)" class="tp-row">
+              <span class="tp-label">卖出</span>
+              <span class="price-num font-mono-nums">{{ targetPriceResult.sellPrice.toFixed(2) }}</span>
+              <span class="price-unit">{{ priceUnit }}</span>
+              <span v-if="currentPrice !== null" class="tp-pct" :class="targetPriceResult.sellPrice >= currentPrice ? 'text-positive' : 'text-negative'">
+                {{ ((targetPriceResult.sellPrice - currentPrice) / currentPrice * 100).toFixed(1) }}%
+              </span>
+            </div>
+          </div>
+        </template>
+        <template v-else>
+          <span class="na-text">--</span>
+        </template>
       </div>
       <button
         class="config-btn"
@@ -256,6 +275,15 @@ const stockStore = useStockStore()
 const stockListStore = useStockListStore()
 
 const targetPriceResult = computed(() => stockStore.getTargetPrice(props.stock.id))
+
+const currentPrice = computed(() => {
+  if (!props.stock.totalShares || props.stock.totalShares === 0) return null
+  return props.stock.marketCap / props.stock.totalShares
+})
+
+const priceUnit = computed(() => {
+  return props.stock.market === 'A' ? '元' : '港元'
+})
 
 // PRR formula dropdown
 const currentPrrFormula = computed<PRRFormulaType>(() => {
@@ -466,7 +494,18 @@ function getTargetPriceErrorText(): string {
 }
 
 function getTargetPriceTooltip(): string {
-  const config = props.stock.targetPriceConfig
+  const stock = props.stock
+  if (stock.prrTargetPriceConfig?.enabled) {
+    const prrConfig = stock.prrTargetPriceConfig
+    const buyTargetPR = prrConfig.buyTargetPR ?? prrConfig.targetPR
+    const sellTargetPR = prrConfig.sellTargetPR ?? prrConfig.targetPR
+    let text = `PRR目标: ${prrConfig.targetPR.toFixed(2)}PR`
+    if (buyTargetPR !== prrConfig.targetPR || sellTargetPR !== prrConfig.targetPR) {
+      text += ` (买入: ${buyTargetPR.toFixed(2)}PR, 卖出: ${sellTargetPR.toFixed(2)}PR)`
+    }
+    return text
+  }
+  const config = stock.targetPriceConfig
   if (!config) return ''
 
   const method = config.valuationType === 1 ? '市值/FCF' : '市值/净利润'
@@ -738,8 +777,8 @@ function onTargetPriceSaved() {
 
 .target-price-area {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 4px;
   flex: 1;
   cursor: pointer;
   padding: 8px 10px;
@@ -760,20 +799,39 @@ function onTargetPriceSaved() {
   color: var(--text-secondary);
 }
 
-.target-price-value {
+.target-price-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tp-row {
   display: flex;
   align-items: baseline;
-  gap: 4px;
+  gap: 6px;
+}
+
+.tp-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 2.2em;
+}
+
+.tp-pct {
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: auto;
 }
 
 .price-num {
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--brand-primary);
+  line-height: 1.3;
 }
 
 .price-unit {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
@@ -1079,7 +1137,6 @@ function onTargetPriceSaved() {
 
   .target-price-area {
     padding: 10px 12px;
-    min-height: 44px;
   }
 
   .target-price-label {
@@ -1087,11 +1144,19 @@ function onTargetPriceSaved() {
   }
 
   .price-num {
-    font-size: 18px;
+    font-size: 14px;
   }
 
   .price-unit {
+    font-size: 10px;
+  }
+
+  .tp-label {
     font-size: 11px;
+  }
+
+  .tp-pct {
+    font-size: 10px;
   }
 
   /* Config button already 44x44, ensure icon scales */

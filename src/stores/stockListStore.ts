@@ -321,7 +321,9 @@ export const useStockListStore = defineStore('stockList', () => {
         targetPriceConfig: {
           enabled: config.enabled,
           valuationType: config.valuationType,
-          targetValuation: config.targetValuation
+          targetValuation: config.targetValuation,
+          buyTargetValuation: config.buyTargetValuation,
+          sellTargetValuation: config.sellTargetValuation,
         },
         targetPriceMethod: 'traditional',
         updatedAt: Date.now()
@@ -353,7 +355,9 @@ export const useStockListStore = defineStore('stockList', () => {
         prrTargetPriceConfig: {
           enabled: config.enabled,
           formulaType: config.formulaType,
-          targetPR: config.targetPR
+          targetPR: config.targetPR,
+          buyTargetPR: config.buyTargetPR,
+          sellTargetPR: config.sellTargetPR,
         },
         targetPriceMethod: 'prr',
         updatedAt: Date.now()
@@ -371,7 +375,7 @@ export const useStockListStore = defineStore('stockList', () => {
   function getTargetPrice(id: string) {
     const stock = stocks.value.find(s => s.id === id)
     if (!stock) {
-      return { price: null as number | null, error: null }
+      return { price: null as number | null, buyPrice: null as number | null, sellPrice: null as number | null, error: null as string | null }
     }
 
     const method = stock.targetPriceMethod ?? 'traditional'
@@ -379,24 +383,43 @@ export const useStockListStore = defineStore('stockList', () => {
     if (method === 'prr') {
       const prrConfig = stock.prrTargetPriceConfig
       if (prrConfig && prrConfig.enabled) {
-        return calculatePRRTargetPrice({
-          targetPR: prrConfig.targetPR,
+        const buyTargetPR = prrConfig.buyTargetPR ?? prrConfig.targetPR
+        const sellTargetPR = prrConfig.sellTargetPR ?? prrConfig.targetPR
+
+        const buyResult = calculatePRRTargetPrice({
+          targetPR: buyTargetPR,
           roe: stock.roe ?? null,
           netProfit: stock.netProfit ?? null,
           totalShares: stock.totalShares
         })
+        const sellResult = calculatePRRTargetPrice({
+          targetPR: sellTargetPR,
+          roe: stock.roe ?? null,
+          netProfit: stock.netProfit ?? null,
+          totalShares: stock.totalShares
+        })
+
+        return {
+          price: buyResult.price,
+          buyPrice: buyResult.price,
+          sellPrice: sellResult.price,
+          error: buyResult.error
+        }
       }
-      return { price: null as number | null, error: null }
+      return { price: null as number | null, buyPrice: null as number | null, sellPrice: null as number | null, error: null as string | null }
     }
 
     // Traditional target price
     const config = stock.targetPriceConfig
     if (!config || !config.enabled) {
-      return { price: null as number | null, error: null }
+      return { price: null as number | null, buyPrice: null as number | null, sellPrice: null as number | null, error: null as string | null }
     }
 
-    return calculateTargetPrice({
-      targetValuation: config.targetValuation,
+    const buyTargetValuation = config.buyTargetValuation ?? config.targetValuation
+    const sellTargetValuation = config.sellTargetValuation ?? config.targetValuation
+
+    const buyResult = calculateTargetPrice({
+      targetValuation: buyTargetValuation,
       valuationType: config.valuationType,
       freeCashFlow: stock.freeCashFlow ?? 0,
       netProfit: stock.netProfit ?? 0,
@@ -404,6 +427,23 @@ export const useStockListStore = defineStore('stockList', () => {
       totalShares: stock.totalShares,
       currentRatio: stock.currentRatio
     })
+
+    const sellResult = calculateTargetPrice({
+      targetValuation: sellTargetValuation,
+      valuationType: config.valuationType,
+      freeCashFlow: stock.freeCashFlow ?? 0,
+      netProfit: stock.netProfit ?? 0,
+      netCash: stock.netCash ?? 0,
+      totalShares: stock.totalShares,
+      currentRatio: stock.currentRatio
+    })
+
+    return {
+      price: buyResult.price,
+      buyPrice: buyResult.price,
+      sellPrice: sellResult.price,
+      error: buyResult.error
+    }
   }
 
   async function resetTargetPriceConfig(id: string) {
