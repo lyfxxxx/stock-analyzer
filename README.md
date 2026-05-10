@@ -1,456 +1,348 @@
-# Stock Analyzer
+# 股票分析工具
 
 <p align="center">
   <img src="https://img.shields.io/badge/Vue-3.5.28-4FC08D?style=flat-square&logo=vue.js" alt="Vue.js">
   <img src="https://img.shields.io/badge/TypeScript-5.9.3-3178C6?style=flat-square&logo=typescript" alt="TypeScript">
-  <img src="https://img.shields.io/badge/Vite-7.3.1-646CFF?style=flat-square&logo=vite" alt="Vite">
+  <img src="https://img.shields.io/badge/Vite-8.0.8-646CFF?style=flat-square&logo=vite" alt="Vite">
   <img src="https://img.shields.io/badge/Pinia-3.0.4-yellow?style=flat-square" alt="Pinia">
   <img src="https://img.shields.io/badge/ECharts-6.0.0-FF6B6B?style=flat-square" alt="ECharts">
-</p>
-
-<p align="center">
-  <a href="README.md">English</a> | <a href="README_CN.md">中文</a>
+  <img src="https://img.shields.io/badge/Tailwind_CSS-4.2-06B6D4?style=flat-square&logo=tailwindcss" alt="Tailwind CSS">
 </p>
 
 ---
 
-## 📖 Overview
+## 📖 项目简介
 
-**Stock Analyzer** is a web-based stock valuation tool that supports both Hong Kong stocks (HK) and A-shares. It provides dual data input modes (API automatic fetching and manual Excel upload) to help investors quickly calculate key financial metrics and valuation ratios.
+**股票分析工具**是一个基于 Web 的港股与 A 股估值分析应用。通过 API 自动获取财务数据或手动上传 Excel，帮助投资者快速计算关键财务指标、估值比率与目标价。
 
-### ✨ Key Features
+### ✨ 核心功能
 
-- 🔄 **Dual Data Sources** - API mode (East Money) or Manual mode (Excel upload)
-- 📊 **Financial Metrics** - Market cap, Net cash, Free cash flow, Net profit
-- 🧮 **Valuation Ratios** - (Market Cap - Net Cash) / FCF & Net Profit
-- 💱 **Multi-Currency** - HKD, CNY, USD with real-time exchange rates
-- 📈 **Data Visualization** - Interactive charts using ECharts
-- 💾 **Local Storage** - IndexedDB for persistent data storage
-- 🔄 **Auto Refresh** - Daily automatic market cap updates
-- 📱 **Responsive** - Mobile-friendly design
+- 🔄 **双数据源** — API 模式（东方财富 / 腾讯财经）或手动模式（Excel 上传）
+- 📊 **财务指标** — 市值、净现金、自由现金流、净利润、流动比率、PE、ROE、ROA、PB、分红率
+- 🧮 **多维度估值** — 传统估值比率 + PRR（市赚率）估值体系
+- 🎯 **目标价计算** — 传统估值法与 PRR 法双模式目标价估算
+- 💱 **多币种** — 港元、人民币、美元，支持实时汇率转换
+- 📈 **数据可视化** — ECharts 生成 FCF/净利润趋势图、ROE 趋势图、分红率图表
+- 💾 **本地存储** — IndexedDB 持久化数据存储
+- 🔄 **自动刷新** — 每日自动更新市值
+- 🌗 **暗色模式** — 支持浅色 / 深色 / 跟随系统三种主题
+- 📱 **响应式设计** — 移动端友好
 
 ---
 
-## 🚀 Quick Start
+## 🚀 快速开始
 
-### Prerequisites
+### 环境要求
 
 - **Node.js**: `^20.19.0 || >=22.12.0`
-- **Package Manager**: npm / yarn / pnpm
+- **包管理器**: npm / yarn / pnpm
 
-### Installation
+### 安装
 
 ```bash
-# Clone repository
+# 克隆仓库
 git clone <repository-url>
 cd stock-analyzer
 
-# Install dependencies
+# 安装依赖
 npm install
 
-# Start development server
+# 启动开发服务器
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173`
+应用将在 `http://localhost:5173` 可用。
+
+### 可用脚本
+
+| 命令 | 说明 |
+|------|------|
+| `npm run dev` | 启动开发服务器 |
+| `npm run build` | 生产构建（含类型检查） |
+| `npm run preview` | 预览生产构建 |
+| `npm run test` | 运行 Vitest 单元测试 |
+| `npm run test:watch` | 监听模式运行测试 |
+| `npm run test:coverage` | 生成测试覆盖率报告 |
+| `npm run test:integration` | 运行实时 API 集成测试 |
+| `npm run test:e2e` | 运行 Playwright E2E 测试 |
+| `npm run lint` | 运行 ESLint 检查 |
+| `npm run lint:fix` | 自动修复 ESLint 问题 |
 
 ---
 
-## 📊 Usage Guide
+## 📊 使用指南
 
-### Adding a Stock
+### 添加股票
 
-1. **API Mode**
-   - Enter stock code (e.g., `00700` for Tencent)
-   - Select market (HK / A-share)
-   - Click "Get Financial Data" to auto-fetch
-   - Review preview and save
+**API 模式**
+1. 输入股票代码（如腾讯：`00700`）
+2. 选择市场（港股 / A 股）
+3. 点击"获取财报数据"自动拉取
+4. 系统自动获取：股票信息 → 三年财报 → 财务指标（ROE/ROA/PB/分红率）
+5. 预览数据并保存
 
-2. **Manual Mode**
-   - Enter stock information manually
-   - Upload Excel files:
-     - **Income Statement** (损益表)
-     - **Balance Sheet** (资产负债表)
-     - **Cash Flow Statement** (现金流量表)
-   - Generate data and save
+**手动模式**
+1. 手动输入股票基本信息
+2. 上传 Excel 文件：
+   - **利润表** — 净利润数据
+   - **资产负债表** — 现金、负债、流动性数据
+   - **现金流量表** — 经营现金流、资本支出
+3. 生成数据并保存
 
-### Viewing Analysis
+### 查看分析
 
-- **Overview Cards**: Market cap, Net cash, Free cash flow, Net profit
-- **Valuation Ratios**: Two calculation methods with color-coded results
-  - Green: Low valuation (< 10)
-  - Orange: Medium valuation (10-20)
-  - Red: High valuation (> 20)
-- **Trend Charts**: Historical FCF and profit trends using ECharts
-- **Data Table**: Sortable yearly financial data
+- **概览卡片**: 市值、净现金、自由现金流、净利润、流动比率、PE
+- **估值比率**: 两种传统估值方法，颜色编码
+  - 绿色: 低估值（< 10）
+  - 橙色: 中等估值（10-20）
+  - 红色: 高估值（> 20）
+- **PRR 估值**: 市赚率体系 — 基础 PR、修正 PR、周期 PR、指标 PR、衍生 PR
+- **目标价**: 传统估值法与 PRR 法的双模式目标价计算
+- **趋势图表**: FCF 趋势、净利润趋势、ROE 趋势、分红率趋势
+- **数据表格**: 按年份可排序的财务明细表
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ 技术架构
 
-### Tech Stack
+### 技术栈
 
-```
-Frontend: Vue 3 (Composition API) + TypeScript
-Build Tool: Vite
-State Management: Pinia
-Database: IndexedDB (idb wrapper)
-Charts: ECharts
-HTTP Client: Native Fetch API
-Testing: Vitest + Vue Test Utils
-Styling: CSS Variables + Scoped CSS
-```
+| 层级 | 技术 |
+|------|------|
+| 前端框架 | Vue 3（Composition API）+ TypeScript |
+| 构建工具 | Vite 8 |
+| 状态管理 | Pinia |
+| 数据库 | IndexedDB（idb 封装） |
+| 图表库 | ECharts 6 |
+| CSS 框架 | Tailwind CSS 4 |
+| 数据验证 | Zod 4 |
+| 路由 | Vue Router 5 |
+| HTTP 客户端 | 原生 Fetch API |
+| 单元测试 | Vitest + Vue Test Utils |
+| E2E 测试 | Playwright |
+| Excel 解析 | SheetJS (xlsx) |
 
-### Project Structure
+### 项目结构
 
 ```
 stock-analyzer/
 ├── src/
-│   ├── api/              # API clients (East Money, Exchange rates)
-│   │   ├── eastmoney.ts
-│   │   ├── financialReportA.ts
-│   │   ├── financialReportHK.ts
-│   │   └── exchangeRate.ts
-│   ├── components/       # Vue components
-│   │   ├── StockCard.vue
-│   │   ├── ValuationChart.vue
-│   │   ├── ExcelUploader.vue
-│   │   └── ApiTester.vue
-│   ├── composables/      # Composition functions
-│   │   ├── useExcelParser.ts
-│   │   └── useFinancialReport.ts
-│   ├── db/               # IndexedDB configuration
+│   ├── api/                    # API 客户端
+│   │   ├── eastmoney.ts           # 东方财富通用 API（股票信息、搜索、总股本）
+│   │   ├── tencent.ts             # 腾讯财经 API（港股备用数据源）
+│   │   ├── financialReportA.ts    # A 股财报 API
+│   │   ├── financialReportHK.ts   # 港股财报 API
+│   │   ├── financialIndicatorsA.ts  # A 股财务指标 API（ROE/ROA/PB/分红率）
+│   │   ├── financialIndicatorsHK.ts # 港股财务指标 API
+│   │   └── exchangeRate.ts        # 汇率 API
+│   ├── components/             # Vue 组件
+│   │   ├── StockCard.vue          # 股票概览卡片
+│   │   ├── ValuationChart.vue     # 估值趋势图表
+│   │   ├── ExcelUploader.vue      # Excel 上传组件
+│   │   ├── ApiTester.vue          # API 连通性测试
+│   │   ├── StockTable.vue         # 年度财务数据表格
+│   │   ├── DividendChart.vue      # 分红率趋势图
+│   │   ├── RoeChart.vue           # ROE 趋势图
+│   │   ├── TargetPriceConfig.vue  # 传统目标价配置
+│   │   ├── PrrTargetPriceConfig.vue # PRR 目标价配置
+│   │   ├── ErrorBoundary.vue      # 错误边界组件
+│   │   ├── ThemeToggle.vue        # 主题切换按钮
+│   │   ├── ViewToggle.vue         # 视图切换（卡片/表格）
+│   │   └── icons/                 # 图标组件
+│   ├── composables/            # 组合式函数
+│   │   ├── useExcelParser.ts      # Excel 解析逻辑
+│   │   ├── useFinancialReport.ts  # 财报获取逻辑
+│   │   └── useTheme.ts            # 主题管理（浅色/深色/系统）
+│   ├── db/                     # IndexedDB 层
 │   │   └── index.ts
-│   ├── stores/           # Pinia stores
-│   │   └── stockStore.ts
-│   ├── types/            # TypeScript types
-│   ├── utils/            # Utility functions
-│   │   ├── calculator.ts
-│   │   ├── excelParser.ts
-│   │   ├── validator.ts
-│   │   └── rateLimiter.ts
-│   ├── views/            # Page views
-│   │   ├── HomeView.vue
-│   │   ├── AddStockView.vue
-│   │   └── StockDetailView.vue
-│   ├── router/           # Vue Router
-│   ├── App.vue
-│   └── main.ts
-├── public/               # Static assets
-│   └── _redirects        # SPA routing support
-├── functions/            # Cloudflare Functions (if needed)
-└── dist/                 # Build output
+│   ├── stores/                 # Pinia 状态管理
+│   │   ├── stockListStore.ts      # 股票 CRUD + 持久化
+│   │   ├── stockApiStore.ts       # API 调用 + 财务计算
+│   │   ├── stockUIStore.ts        # UI 状态
+│   │   └── stockStore.ts          # 兼容门面（组合上述 3 个 Store）
+│   ├── types/                  # TypeScript 类型定义
+│   │   ├── stock.ts               # 核心股票类型
+│   │   ├── financialReport.ts     # 财报类型
+│   │   └── prr.ts                 # PRR 估值类型
+│   ├── utils/                  # 工具函数
+│   │   ├── calculator.ts          # 财务计算（净现金/自由现金流/估值/PE等）
+│   │   ├── prr-calculator.ts      # PRR 市赚率计算
+│   │   ├── targetPriceCalculator.ts # 传统目标价计算
+│   │   ├── prr-target-price.ts    # PRR 目标价计算
+│   │   ├── excelParser.ts         # Excel 数据解析
+│   │   ├── formatters.ts          # 数据格式化
+│   │   ├── rateLimiter.ts         # API 限流器
+│   │   ├── retry.ts               # 重试机制
+│   │   ├── validator.ts           # 数据验证
+│   │   ├── validateApiResponse.ts # API 响应验证
+│   │   ├── prr-formatter.ts       # PRR 结果格式化
+│   │   └── logger.ts              # 结构化日志
+│   ├── validation/             # Zod 验证模式
+│   │   ├── apiSchemas.ts          # API 响应 Schema
+│   │   └── stockSchemas.ts        # 股票数据 Schema
+│   ├── views/                  # 路由页面
+│   │   ├── HomeView.vue           # 首页（股票列表 + 快速筛选）
+│   │   ├── AddStockView.vue       # 添加/编辑股票
+│   │   └── StockDetailView.vue    # 股票详情
+│   ├── router/                 # Vue Router 配置
+│   ├── assets/                 # 静态资源（CSS、SVG）
+│   ├── App.vue                 # 应用根组件
+│   └── main.ts                 # 应用入口
+├── docs/                       # 项目文档
+├── e2e/                        # Playwright E2E 测试
+├── public/                     # 公共静态文件
+│   └── _redirects              # SPA 路由重定向
+└── dist/                       # 构建输出
 ```
 
 ---
 
-## 🧮 Calculation Methods
+## 🧮 计算方法
 
-### Financial Metrics
-
-```
-Net Cash = Cash and Equivalents - Short-term Debt - Long-term Debt
-Free Cash Flow = Operating Cash Flow - Capital Expenditure
-```
-
-### Valuation Ratios
+### 财务指标
 
 ```
-Valuation 1 = (Market Cap - Net Cash) / Free Cash Flow
-Valuation 2 = (Market Cap - Net Cash) / Net Profit
+净现金 = 货币资金 — 有息负债（短期借款 + 长期借款）
+自由现金流 = 经营活动现金流净额 — 资本支出
+PE = 市值 / 净利润
+流动比率 = 流动资产 / 流动负债
 ```
 
-**Notes**:
-- Valuation 1 shows "N/A" when Free Cash Flow is negative
-- A-shares are converted to HKD equivalent for unified comparison
-- Projected data (from quarterly reports) is marked with a "预测" badge
-- Currency conversion uses real-time exchange rates from open.er-api.com
+### 传统估值比率
+
+```
+估值1 = (市值 — 净现金) / 自由现金流
+估值2 = (市值 — 净现金) / 净利润
+```
+
+### PRR（市赚率）估值
+
+PRR 体系由多个计算公式组成：
+
+```
+基础 PR = PE / ROE
+修正因子 N = 50% / 分红率
+修正 PR = N × PE / ROE
+周期 PR = 5 年加权平均 ROE 替代 ROE
+指标 PR = ROE × ROA 替代 ROE
+衍生 PR = PE × PB / (ROE × 分红率)
+```
+
+估值判断：
+- PR < 1.0 → 低估，建议买入
+- 1.0 ≤ PR ≤ 1.5 → 合理，建议持有
+- PR > 1.5 → 高估，建议卖出
+
+### 目标价计算
+
+**传统法**:
+- 当流动比率 ≥ 1.5 时：`目标价 = (目标估值倍数 × 财务指标 + 净现金) / 总股本`
+- 当流动比率 < 1.5 时：`目标价 = (目标估值倍数 × 财务指标) / 总股本`
+- 财务指标为自由现金流（估值1）或净利润（估值2）
+
+**PRR 法**: `目标价 = (目标PR × ROE × 净利润) / 总股本`
+
+**说明**:
+- 自由现金流为负时，估值1 显示 "N/A"
+- A 股数据转换为港元等值，便于统一比较
+- 预测数据（季报推算）标记"预测"标签
+- 汇率使用 open.er-api.com 实时汇率，备用汇率：USD 7.75, CNY 1.10
 
 ---
 
-## 🌐 API Integration
+## 🌐 API 集成
 
-### Data Sources
+### 数据来源
 
-#### East Money API
-- **Stock Info**: `https://push2.eastmoney.com/api/qt/stock/get`
-  - Supports both HK stocks (116.xxx) and A-shares (0.xxx / 1.xxx)
-  - Returns: Stock name, Market cap, Real-time price
-  
-- **A-Share Financial Reports**: `https://datacenter.eastmoney.com/securities/api/data/get`
-  - Balance Sheet, Income Statement, Cash Flow
-  - Up to 30 years of historical data
-  
-- **HK Stock Financial Reports**: `https://datacenter.eastmoney.com/api/data/v1/get`
-  - Similar data structure for Hong Kong stocks
+#### 东方财富 API
+- **股票信息**: `push2.eastmoney.com/api/qt/stock/get`
+  - 支持港股（`116.xxx`）和 A 股（`0.xxx` / `1.xxx`）
+  - 返回：股票名称、市值、实时价格、总股本
+- **A 股财报**: `datacenter.eastmoney.com/securities/api/data/get`
+  - 资产负债表、利润表、现金流量表，最多 30 年历史
+- **港股财报**: `datacenter.eastmoney.com/api/data/v1/get`
+- **A 股财务指标**: `datacenter.eastmoney.com/api/data/v1/get`
+  - ROE、ROA、PB、分红率等指标
+- **港股财务指标**: `datacenter.eastmoney.com/api/data/get`
 
-#### Exchange Rate API
-- **Provider**: `https://open.er-api.com/v6/latest/HKD`
-- **Fallback Rates**: USD: 7.75, CNY: 1.10
-- **Cache Duration**: 24 hours in localStorage
+#### 腾讯财经 API（港股备用）
+- **接口**: `proxy.finance.qq.com/ifzqgtimg/stock`
+- 作为东方财富港股数据的备用数据源，提供现金流量表等数据
 
-### Rate Limiting
+#### 汇率 API
+- **提供商**: `open.er-api.com/v6/latest/HKD`
+- **备用汇率**: USD: 7.75, CNY: 1.10
+- **缓存**: localStorage 保存 24 小时
 
-- API calls are rate-limited (1 request per 500ms) to prevent blocking
-- Automatic retry mechanism with max 1 retry
-- Fallback to manual mode after retry exhaustion
-- Referer header spoofing for East Money API compatibility
+### 限流保护
+
+- 东方财富 API 调用限流（每 500ms 1 个请求）
+- 自动重试机制，失败后切换备用数据源
+- Referer 头伪装以兼容东方财富 API
 
 ---
 
-## 🧪 Testing
+## 🧪 测试
 
 ```bash
-# Run unit tests
-npm run test
-
-# Run tests with coverage report
-npm run test:coverage
-
-# Run tests in watch mode
-npm run test:watch
+npm run test              # 运行单元测试
+npm run test:coverage     # 覆盖率报告（v8）
+npm run test:watch        # 监听模式
+npm run test:integration  # 实时 API 集成测试
+npm run test:e2e          # Playwright E2E 测试
 ```
 
-### Test Coverage
+### 测试覆盖
 
-- **Utils**: Calculator, Excel parser, Validator
-- **API**: East Money integration, Exchange rates
-- **Components**: Vue component unit tests
+- **工具函数**: calculator、prr-calculator、targetPriceCalculator、excelParser、validator
+- **API 模块**: 东方财富集成、腾讯财经集成、汇率获取
+- **组件**: Vue 组件单元测试
+- **E2E**: Playwright 浏览器端到端测试
 
-### Live API Integration Tests
+### 实时 API 集成测试
 
-Some tests make real HTTP requests to East Money API. To prevent rate limiting, these are **disabled by default**:
+实时 API 测试默认**禁用**，避免触发东方财富限流：
 
 ```bash
-# Default test run (skips live API tests)
-npm run test
-
-# Run with live API integration tests
-npm run test:integration
-
-# Or set environment variable manually
-VITE_LIVE_API_TESTS=true npm run test
+npm run test:integration                # 运行集成测试
+VITE_LIVE_API_TESTS=true npm run test   # 手动启用
 ```
-
-**Note**: Live API tests should be run sparingly to avoid triggering rate limits from East Money.
 
 ---
 
-## 🚀 Deployment
+## 🚀 部署
 
-### Cloudflare Pages (Recommended)
+### Cloudflare Pages（推荐）
 
-1. **Prepare Repository**
-   ```bash
-   git add .
-   git commit -m "Ready for deployment"
-   git push origin main
+1. 推送代码到 GitHub 仓库
+2. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com)
+3. Pages → 创建项目 → 连接 Git 仓库
+4. 构建设置：
    ```
+   构建命令: npm run build
+   输出目录: dist
+   ```
+5. 部署完成后访问 `https://<project-name>.pages.dev`
 
-2. **Configure Cloudflare Pages**
-   - Login to [Cloudflare Dashboard](https://dash.cloudflare.com)
-   - Navigate to **Pages** → **Create a project**
-   - **Connect to Git**: Select your GitHub repository
-   - **Build Settings**:
-     ```
-     Build command: npm run build
-     Build output directory: dist
-     ```
-   - **Environment Variables** (optional):
-     - None required for basic functionality
-
-3. **Deploy**
-   - Click "Save and Deploy"
-   - Wait for build to complete
-   - Access your site at `https://<project-name>.pages.dev`
-
-### Manual Deployment
+### 手动部署
 
 ```bash
-# Install Wrangler CLI
-npm install -g wrangler
-
-# Build production bundle
-npm run build
-
-# Deploy to Cloudflare Pages
-wrangler pages deploy dist
-```
-
-### SPA Routing Configuration
-
-The `public/_redirects` file ensures proper client-side routing:
-```
-/*    /index.html   200
+npm run build          # 构建
+# 将 dist/ 目录部署到任意静态托管服务
 ```
 
 ---
 
-## 📁 Supported Excel Format
+## 📚 文档
 
-### Required Files
-
-Upload 3 Excel files (`.xlsx`, `.xls`, or `.csv`) with the following columns:
-
-#### 1. Income Statement (损益表)
-| Column Name (Chinese) | Description |
-|----------------------|-------------|
-| 归属于母公司股东的净利润 | Parent Net Profit |
-| 报告期 | Report Date |
-
-#### 2. Balance Sheet (资产负债表)
-| Column Name (Chinese) | Description |
-|----------------------|-------------|
-| 货币资金 | Cash and Equivalents |
-| 交易性金融资产 | Trading Financial Assets |
-| 短期借款 | Short-term Loans |
-| 长期借款 | Long-term Loans |
-| 报告期 | Report Date |
-
-#### 3. Cash Flow Statement (现金流量表)
-| Column Name (Chinese) | Description |
-|----------------------|-------------|
-| 经营活动产生的现金流量净额 | Operating Cash Flow |
-| 购建固定资产、无形资产和其他长期资产支付的现金 | Capital Expenditure |
-| 报告期 | Report Date |
-
-### Data Processing
-
-- Automatic column detection and mapping
-- Multi-sheet support (scans all sheets)
-- Date parsing (various formats supported)
-- Unit conversion (handles 万元, 亿元, etc.)
-- Missing data handling with validation
+- [架构文档](docs/ARCHITECTURE.md) — 领域地图、依赖方向、Store 架构
+- [前端规范](docs/FRONTEND.md) — Vue 组件模式、CSS 变量、导入顺序
+- [数据流与 API 契约](docs/design-docs/data-flow-and-api-contracts.zh-CN.md)
+- [PRR 估值方法论](docs/research/prr-valuation-methodology.md)
+- [东方财富 API 调研](docs/research/eastmoney-financial-indicators-api.md)
 
 ---
 
-## 🛠️ Development
+## 📝 许可证
 
-### Available Scripts
-
-```bash
-# Development
-npm run dev              # Start Vite dev server with HMR
-npm run preview          # Preview production build locally
-
-# Building
-npm run build            # Full build with type checking
-npm run build-only       # Build without type checking
-npm run type-check       # Run TypeScript compiler
-
-# Testing
-npm run test             # Run all tests once
-npm run test:watch       # Run tests in watch mode
-npm run test:coverage    # Generate coverage report
-
-# Linting
-npm run lint             # Run ESLint (if configured)
-```
-
-### Development Guidelines
-
-1. **Components**: Use Composition API with `<script setup>`
-2. **Styling**: Use CSS variables from `App.vue` for consistency
-3. **State**: Use Pinia stores for global state management
-4. **API Calls**: Use rate limiter for external API calls
-5. **Types**: Define types in `src/types/` directory
-6. **Utils**: Place reusable logic in `src/utils/`
-
-### Project Configuration
-
-#### TypeScript
-- Strict mode enabled
-- Path alias: `@/` maps to `src/`
-- Vue type support via `vue-tsc`
-
-#### Vite
-- Port: 5173 (default)
-- HMR enabled
-- Proxy support available (if needed)
-
----
-
-## 📋 Browser Compatibility
-
-| Browser | Minimum Version | Notes |
-|---------|----------------|-------|
-| Chrome | 90+ | Recommended |
-| Firefox | 88+ | Full support |
-| Safari | 14+ | Full support |
-| Edge | 90+ | Full support |
-
-**Requirements**:
-- IndexedDB support (for data persistence)
-- ES2020+ JavaScript support
-- CSS Grid and Flexbox
-
----
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-#### API Connection Failed
-- Check internet connection
-- Verify East Money API is accessible
-- Switch to Manual mode if API is unavailable
-
-#### Excel Upload Failed
-- Ensure file format is .xlsx, .xls, or .csv
-- Check that required columns are present
-- Verify data is in expected format
-
-#### Data Not Persisting
-- Check browser supports IndexedDB
-- Clear browser data and retry
-- Check browser storage quotas
-
-### CORS Issues
-
-If deploying to Cloudflare Pages and experiencing CORS errors:
-
-1. **Check API Availability**: East Money API may block non-Chinese IPs
-2. **Use Cloudflare Functions**: Create proxy functions in `functions/` directory
-3. **Fallback to Manual Mode**: Always available regardless of API status
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Contribution Guidelines
-
-- Follow existing code style
-- Add tests for new features
-- Update documentation as needed
-- Ensure all tests pass before submitting PR
-
----
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details
-
----
-
-## 🙏 Acknowledgments
-
-- [Vue.js](https://vuejs.org/) - Progressive JavaScript Framework
-- [ECharts](https://echarts.apache.org/) - Powerful Charting Library
-- [Pinia](https://pinia.vuejs.org/) - Intuitive Store for Vue.js
-- [Vite](https://vitejs.dev/) - Next Generation Frontend Tooling
-- [East Money](https://www.eastmoney.com/) - Financial Data Provider
-- [Open Exchange Rates](https://open.er-api.com/) - Currency exchange rate API
-
----
-
-<p align="center">
-  Made with ❤️ for value investors
-</p>
+MIT

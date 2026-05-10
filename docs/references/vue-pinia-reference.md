@@ -18,7 +18,7 @@ const doubled = computed(() => count.value * 2)
 
 // watch - 副作用监听
 watch(count, (newVal, oldVal) => {
-  console.log(`计数从 ${oldVal} 变为 ${newVal}`)
+  logger.info('计数器', `计数从 ${oldVal} 变为 ${newVal}`)
 })
 
 // 生命周期

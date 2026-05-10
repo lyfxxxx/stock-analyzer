@@ -6,31 +6,25 @@
 ```typescript
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { resolve } from 'path'
+import vueDevTools from 'vite-plugin-vue-devtools'
+import tailwindcss from '@tailwindcss/vite'
+import { fileURLToPath, URL } from 'node:url'
 
-export default defineConfig({
-  plugins: [vue()],
+export default defineConfig(({ mode }) => ({
+  plugins: [
+    vue(),
+    vueDevTools(),
+    tailwindcss(),
+  ],
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src')
+      '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   },
-  server: {
-    port: 5173,
-    proxy: {
-      '/api/search': {
-        target: 'https://searchapi.eastmoney.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/search/, '')
-      }
-    }
+  define: {
+    __DEV__: mode === 'development',
   },
-  build: {
-    target: 'es2020',
-    outDir: 'dist',
-    sourcemap: false
-  }
-})
+}))
 ```
 
 ### 环境变量
@@ -113,7 +107,7 @@ watch(chartRef, (el) => {
 ```
 
 ### 使用的图表类型
-- **折线图**: 自由现金流和净利润趋势
+- **折线图**: 自由现金流趋势、净利润趋势、ROE 趋势、分红率趋势
 - **柱状图**: 年度同比对比
 - **仪表盘**: 估值比率指标
 
