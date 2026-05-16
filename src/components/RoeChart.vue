@@ -54,56 +54,13 @@ function getThemeColors() {
   }
 }
 
-function predictNextYearROE(yearlyData: YearlyData[]): { year: number; roe: number; isProjected: boolean } | null {
-  // Get last 3 years of valid ROE (not projected)
-  const validRoes = yearlyData
-    .filter(d => d.roe != null && !d.isProjected && d.roe !== undefined)
-    .map(d => ({ year: d.year, roe: d.roe as number }))
-    .slice(-3)
-
-  if (validRoes.length < 3) {
-    return null
-  }
-
-  const lastIndex = yearlyData.length - 1
-  const lastData = yearlyData[lastIndex]
-  // Only predict if last year is NOT projected
-  if (!lastData || lastData.isProjected) {
-    return null
-  }
-
-  // Calculate average YoY growth rate
-  const roe0 = validRoes[0]
-  const roe1 = validRoes[1]
-  const roe2 = validRoes[2]
-  if (!roe0 || !roe1 || !roe2) {
-    return null
-  }
-  if (roe0.roe === 0 || roe1.roe === 0) {
-    return null
-  }
-
-  const growth1 = (roe1.roe - roe0.roe) / roe0.roe
-  const growth2 = (roe2.roe - roe1.roe) / roe1.roe
-  const avgGrowth = (growth1 + growth2) / 2
-
-  // Predict next year ROE
-  const predictedROE = roe2.roe * (1 + avgGrowth)
-
-  return {
-    year: roe2.year + 1,
-    roe: predictedROE,
-    isProjected: true
-  }
-}
-
 function updateChart() {
   if (!chart) return
 
   const colors = getThemeColors()
 
   // Sort data by year
-  const sortedData = [...props.yearlyData].sort((a, b) => a.year - b.year)
+  const sortedData = props.yearlyData.map(d => ({ ...d })).sort((a, b) => a.year - b.year)
 
   // Apply forecastRoe to the latest year's data if provided (estimated full-year ROE from partial report)
   // This replaces the partial-year value with the projected full-year estimate at the SAME year
@@ -118,8 +75,13 @@ function updateChart() {
   // NOTE: We do NOT predict future years. The forecastRoe represents the current year's
   // estimated full-year ROE, not a future year's prediction.
 
-  // Build chart data
-  const chartData = sortedData
+  // Build chart data from deep-copied sorted data
+  interface ChartItem { year: number; roe: number | null | undefined; isProjected: boolean }
+  const chartData: ChartItem[] = sortedData.map(d => ({
+    year: d.year,
+    roe: d.roe,
+    isProjected: d.isProjected ?? false
+  }))
 
   const years = chartData.map(d => d.year.toString())
   const roeValues = chartData.map(d => d.roe ?? 0)

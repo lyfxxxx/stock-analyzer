@@ -286,15 +286,15 @@
               </span>
             </div>
             <!-- PRR Target Price Formula -->
-            <template v-if="stock?.prrTargetPriceConfig?.enabled">
+            <template v-if="stock?.targetPriceMethod === 'prr'">
               <div class="target-price-formula">
                 <span class="formula-label">PRR 目标价 = targetPR × ROE × 净利润 / 总股本</span>
-                <span class="formula-multiplier">{{ (stock.prrTargetPriceConfig.buyTargetPR ?? stock.prrTargetPriceConfig.targetPR).toFixed(1) }}PR</span>
+                <span class="formula-multiplier">{{ (stock.prrTargetPriceConfig?.buyTargetPR ?? stock.prrTargetPriceConfig?.targetPR ?? 0).toFixed(1) }}PR</span>
               </div>
               <div class="target-price-note">
                 <span class="note-icon">ⓘ</span>
                 <span class="note-text">
-                  目标市值 = {{ (stock.prrTargetPriceConfig.buyTargetPR ?? stock.prrTargetPriceConfig.targetPR).toFixed(2) }}PR × {{ stock.roe?.toFixed(1) ?? '-' }}% × {{ formatYi(stock.netProfit) }} = {{ formatYi((targetPriceResult.buyPrice ?? targetPriceResult.price) * (stock.totalShares ?? 0)) }}
+                  目标市值 = {{ (stock.prrTargetPriceConfig?.buyTargetPR ?? stock.prrTargetPriceConfig?.targetPR ?? 0).toFixed(2) }}PR × {{ stock.roe?.toFixed(1) ?? '-' }}% × {{ formatYi(stock.netProfit) }} = {{ formatYi((targetPriceResult.buyPrice ?? targetPriceResult.price) * (stock.totalShares ?? 0)) }}
                 </span>
               </div>
             </template>
@@ -329,10 +329,10 @@
               </span>
             </div>
             <!-- PRR Sell Formula -->
-            <template v-if="stock?.prrTargetPriceConfig?.enabled">
+            <template v-if="stock?.targetPriceMethod === 'prr'">
               <div class="target-price-formula">
                 <span class="formula-label">PRR 目标价 = targetPR × ROE × 净利润 / 总股本</span>
-                <span class="formula-multiplier">{{ (stock.prrTargetPriceConfig.sellTargetPR ?? stock.prrTargetPriceConfig.targetPR).toFixed(1) }}PR</span>
+                <span class="formula-multiplier">{{ (stock.prrTargetPriceConfig?.sellTargetPR ?? stock.prrTargetPriceConfig?.targetPR ?? 0).toFixed(1) }}PR</span>
               </div>
             </template>
             <!-- Traditional Sell Formula -->

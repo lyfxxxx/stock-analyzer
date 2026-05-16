@@ -75,4 +75,4 @@ npm run lint:fix     # 自动修复 ESLint 问题
 3. **禁止跨 Store 导入** — 每个领域 Store 独立，通过 `stockStore.ts` 门面组合
 4. **依赖方向** — Views → Stores → API/Utils/DB（不可反向）
 5. **所有 API 调用需限流** — 使用 `src/utils/rateLimiter.ts`（每 500ms 1 个请求）
-6. **需要实际验证** — 完成修改后请使用 Playwright MCP 或 DevTools MCP 回测实际场景
+6. **需要实际验证** — 完成修改后请进行Agent QA，使用 Playwright MCP 或 DevTools MCP 回测实际场景

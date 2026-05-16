@@ -115,14 +115,14 @@
 
     <!-- Row 4: Target Price -->
     <div
-      v-if="stock.targetPriceConfig || stock.prrTargetPriceConfig?.enabled"
+      v-if="stock.targetPriceConfig?.enabled || (stock.prrTargetPriceConfig?.enabled && stock.targetPriceMethod === 'prr')"
       class="target-price-row"
       :class="getTargetPriceRowClass()"
     >
       <div class="target-price-area" @click.stop="showTargetPriceConfig = true">
         <div class="target-price-label">
           <span>目标价</span>
-          <span v-if="stock.prrTargetPriceConfig?.enabled" class="prr-badge" title="基于PRR计算">PRR</span>
+          <span v-if="stock.prrTargetPriceConfig?.enabled && stock.targetPriceMethod === 'prr'" class="prr-badge" title="基于PRR计算">PRR</span>
           <span
             class="info-icon"
             @click.stop
@@ -495,7 +495,7 @@ function getTargetPriceErrorText(): string {
 
 function getTargetPriceTooltip(): string {
   const stock = props.stock
-  if (stock.prrTargetPriceConfig?.enabled) {
+  if (stock.prrTargetPriceConfig?.enabled && stock.targetPriceMethod === 'prr') {
     const prrConfig = stock.prrTargetPriceConfig
     const buyTargetPR = prrConfig.buyTargetPR ?? prrConfig.targetPR
     const sellTargetPR = prrConfig.sellTargetPR ?? prrConfig.targetPR

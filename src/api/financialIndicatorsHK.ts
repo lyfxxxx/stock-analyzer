@@ -3,6 +3,7 @@ import { logger } from '@/utils/logger'
 import { withRetry, fetchWithTimeout, HttpError } from '@/utils/retry'
 import { z } from 'zod'
 import { validateApiResponse } from '@/utils/validateApiResponse'
+import { getReportType, calculateSeasonalRatios, type SeasonalRatios, type QuarterlyData } from '@/utils/calculator'
 
 declare const __DEV__: boolean
 
@@ -146,6 +147,8 @@ export interface ProcessedFinancialIndicators {
   }
   /** Historical yearly data (sorted by year descending) */
   yearlyData: YearlyIndicatorData[]
+  /** Seasonal ratios for ROE/ROA projection */
+  seasonalRatios: SeasonalRatios | null
 }
 
 // ============================================================
@@ -403,6 +406,7 @@ export async function fetchHKFinancialIndicators(
         roa: null,
         dividendPayoutRatio: d.dividendPayoutRatio,
       })),
+      seasonalRatios: null,
     }
   }
 
@@ -428,6 +432,7 @@ export async function fetchHKFinancialIndicators(
         roa: null,
         dividendPayoutRatio: d.dividendPayoutRatio,
       })),
+      seasonalRatios: null,
     }
   }
   const current = {
@@ -474,10 +479,33 @@ export async function fetchHKFinancialIndicators(
   // Convert to array and sort by year descending
   const yearlyData = Array.from(yearMap.values()).sort((a, b) => b.year - a.year)
 
+  // Compute seasonal ROE ratios from quarterly data
+  const quarterlyRoeData: QuarterlyData[] = []
+  const annualRoeMap = new Map<number, number>()
+
+  for (const item of sortedData) {
+    const year = extractYearFromReportDate(item.REPORT_DATE)
+    const reportType = getReportType(item.REPORT_DATE)
+    if (reportType !== 'annual' && item.ROE_AVG != null) {
+      quarterlyRoeData.push({ year, reportType, value: item.ROE_AVG })
+    }
+  }
+
+  for (const d of yearlyData) {
+    if (d.roe != null) {
+      annualRoeMap.set(d.year, d.roe)
+    }
+  }
+
+  const seasonalRatios = quarterlyRoeData.length >= 2
+    ? calculateSeasonalRatios(quarterlyRoeData, annualRoeMap)
+    : null
+
   logger.debug('financialIndicatorsHK', `current: roe=${current.roe}, roa=${current.roa}, pb=${current.pb}, dividend=${current.dividendPayoutRatio}, yearlyDataYears: ${yearlyData.map(d => d.year).join(',')}`)
 
   return {
     current,
     yearlyData,
+    seasonalRatios,
   }
 }

@@ -63,14 +63,14 @@
                     type="range"
                     class="valuation-slider"
                     :min="0.1"
-                    :max="5.0"
+                    :max="2.0"
                     :step="0.05"
                     v-model.number="localBuyTargetPR"
                   />
                   <div class="slider-labels">
                     <span>0.1</span>
-                    <span>2.5</span>
-                    <span>5.0</span>
+                    <span>1.0</span>
+                    <span>2.0</span>
                   </div>
                 </div>
               </div>
@@ -86,14 +86,14 @@
                     type="range"
                     class="valuation-slider"
                     :min="0.1"
-                    :max="5.0"
+                    :max="2.0"
                     :step="0.05"
                     v-model.number="localSellTargetPR"
                   />
                   <div class="slider-labels">
                     <span>0.1</span>
-                    <span>2.5</span>
-                    <span>5.0</span>
+                    <span>1.0</span>
+                    <span>2.0</span>
                   </div>
                 </div>
               </div>

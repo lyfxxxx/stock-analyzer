@@ -4,7 +4,7 @@ import { fetchEastMoneyStockInfo, testEastMoneyAPI, searchStocksByName } from '@
 import { testTencentAPI, fetchTencentHKFinancialReport } from '@/api/tencent'
 import { fetchAStockFinancialReport } from '@/api/financialReportA'
 import { fetchHKStockFinancialReport } from '@/api/financialReportHK'
-import { calculateNetCash, calculateFreeCashFlow, calculateValuations, calculatePERatio, getReportType, getSimpleMultiplier } from '@/utils/calculator'
+import { calculateNetCash, calculateFreeCashFlow, calculateValuations, calculatePERatio, getReportType, getSimpleMultiplier, projectAnnualValue } from '@/utils/calculator'
 import { buildYearlyData } from '@/utils/excelParser'
 import { logger } from '@/utils/logger'
 import { useStockUIStore } from './stockUIStore'
@@ -200,11 +200,12 @@ export const useStockApiStore = defineStore('stockApi', () => {
           const latestRoe = indicatorResult.current.roe
           const latestRoa = indicatorResult.current.roa
           const reportDate = indicatorResult.current.reportDate
+          const seasonalRatios = indicatorResult.seasonalRatios ?? null
 
           if (latestRoe !== null) {
             const reportType = getReportType(reportDate)
             if (reportType !== 'annual') {
-              prrIndicators.roe = latestRoe * getSimpleMultiplier(reportType)
+              prrIndicators.roe = projectAnnualValue(latestRoe, reportType, seasonalRatios)
               prrIndicators.roeProjected = true
             } else {
               prrIndicators.roe = latestRoe
@@ -215,7 +216,7 @@ export const useStockApiStore = defineStore('stockApi', () => {
           if (latestRoa !== null) {
             const reportType = getReportType(reportDate)
             if (reportType !== 'annual') {
-              prrIndicators.roa = latestRoa * getSimpleMultiplier(reportType)
+              prrIndicators.roa = projectAnnualValue(latestRoa, reportType, seasonalRatios)
               prrIndicators.roaProjected = true
             } else {
               prrIndicators.roa = latestRoa
