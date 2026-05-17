@@ -321,6 +321,15 @@
             <button @click="saveStock" :disabled="saving" class="save-button">
               {{ saving ? '保存中...' : '确认保存' }}
             </button>
+            <TagConfigPopover
+              v-if="isEditMode"
+              :stock-id="editingStockId"
+            >
+              <button type="button" class="tag-config-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"/></svg>
+                标签
+              </button>
+            </TagConfigPopover>
             <button v-if="dataSourceMode === 'api'" @click="refetchData" :disabled="fetchLoading" class="reset-button">
               <span v-if="fetchLoading" class="btn-spinner small"></span>
               <span v-else>重新获取</span>
@@ -337,6 +346,7 @@
 import { ref, reactive, computed, toRaw, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useStockStore } from '@/stores/stockStore'
+import { useTagStore } from '@/stores/tagStore'
 import { useExcelParser, useValuation } from '@/composables/useExcelParser'
 import { validateStockCode } from '@/utils/validator'
 import { fetchExchangeRates } from '@/api/exchangeRate'
@@ -346,12 +356,14 @@ import type { PRRFormulaType } from '@/types/prr'
 import ExcelUploader from '@/components/ExcelUploader.vue'
 import ValuationChart from '@/components/ValuationChart.vue'
 import StockDetailView from '@/views/StockDetailView.vue'
+import TagConfigPopover from '@/components/TagConfigPopover.vue'
 
 type DataSourceMode = 'api' | 'manual'
 
 const router = useRouter()
 const route = useRoute()
 const stockStore = useStockStore()
+const tagStore = useTagStore()
 const { parseFiles, validationResult, validationErrors } = useExcelParser()
 const { calculate } = useValuation()
 
@@ -871,6 +883,14 @@ async function saveStock() {
         valuation2: rawData.valuation2,
         yearlyData: rawData.yearlyData
       })
+      // Sync auto tags after editing
+      if (!tagStore.initialized) {
+        await tagStore.init()
+      }
+      const editedStock = stockStore.stocks.find(s => s.id === editingStockId.value)
+      if (editedStock) {
+        await tagStore.syncAutoTags(editedStock)
+      }
     } else {
       const stockData = {
         ...rawData,
@@ -879,6 +899,14 @@ async function saveStock() {
         updatedAt: Date.now()
       }
       await stockStore.addStock(stockData)
+      // Sync auto tags for the newly added stock
+      if (!tagStore.initialized) {
+        await tagStore.init()
+      }
+      const savedStock = stockStore.stocks.find(s => s.id === stockData.id)
+      if (savedStock) {
+        await tagStore.syncAutoTags(savedStock)
+      }
     }
     router.push('/')
   } finally {
@@ -1776,7 +1804,8 @@ function getPrrValuationLevel(prr: number | null, market: 'A' | 'H' | 'US'): 'lo
   cursor: not-allowed;
 }
 
-.reset-button {
+.reset-button,
+.tag-config-btn {
   padding: 12px 32px;
   background: transparent;
   color: var(--text-secondary);
@@ -1788,6 +1817,11 @@ function getPrrValuationLevel(prr: number | null, market: 'A' | 'H' | 'US'): 'lo
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.tag-config-btn:hover {
+  border-color: var(--accent-color, var(--text-primary));
+  color: var(--accent-color, var(--text-primary));
 }
 
 .reset-button:hover:not(:disabled) {

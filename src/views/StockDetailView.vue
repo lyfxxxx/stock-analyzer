@@ -38,6 +38,19 @@
         </select>
       </div>
 
+      <!-- Tag Bar -->
+      <div v-if="stock" class="tag-bar">
+        <TagList
+          :stock-id="stock.id"
+          :stock-name="stock.name"
+          :truncated="false"
+          size="md"
+          :removable="true"
+          :show-empty-hint="true"
+          empty-text="点击添加标签"
+        />
+      </div>
+
       <!-- Overview Cards -->
       <div class="overview-grid">
         <div class="overview-card">
@@ -472,7 +485,9 @@ import ValuationChart from '@/components/ValuationChart.vue'
 import TargetPriceConfig from '@/components/TargetPriceConfig.vue'
 import RoeChart from '@/components/RoeChart.vue'
 import DividendChart from '@/components/DividendChart.vue'
+import TagList from '@/components/TagList.vue'
 
+import { useTagStore } from '@/stores/tagStore'
 import { logger } from '@/utils/logger'
 import { getValuationLevel, formatYi } from '@/utils/formatters'
 import { formatPRR, getPrrValuationText, getPrrFormulaText, getPrrFormulaDescription, getPrrFormulaWithValues, getPrrValuationBgClass, getPrrValuationTextClass, getPrrValuationLevel } from '@/utils/prr-formatter'
@@ -488,6 +503,7 @@ const router = useRouter()
 const route = useRoute()
 const stockStore = useStockStore()
 const stockListStore = useStockListStore()
+const tagStore = useTagStore()
 
 const stock = ref<StockData | null>(props.previewData ?? null)
 const loading = ref(!props.previewData)
@@ -625,6 +641,15 @@ onMounted(async () => {
     }
   } finally {
     loading.value = false
+  }
+
+  // Initialize tag store (non-blocking for detail view)
+  if (!tagStore.initialized) {
+    try {
+      await tagStore.init()
+    } catch (e) {
+      logger.error('StockDetailView', 'Failed to init tag store:', e)
+    }
   }
 })
 
@@ -805,6 +830,13 @@ function goBack() { router.push('/') }
   font-family: var(--font-sans);
 }
 .currency-select:focus { outline: none; border-color: var(--brand-primary); }
+
+/* Tag bar */
+.tag-bar {
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+  background-color: var(--bg-card); border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg, 8px); flex-wrap: wrap;
+}
 
 /* Overview grid */
 .overview-grid {

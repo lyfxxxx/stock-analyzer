@@ -3,7 +3,9 @@ import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
 export default defineConfig({
-  plugins: [vue()],
+  // Vite 8 uses Rolldown types, Vitest 4 uses Rollup types — known compatibility gap.
+  // Runtime behavior is correct; type assertion is the idiomatic workaround.
+  plugins: [vue() as any],
   test: {
     environment: 'jsdom',
     include: ['src/**/*.spec.ts'],

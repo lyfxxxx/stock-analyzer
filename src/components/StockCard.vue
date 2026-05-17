@@ -20,6 +20,19 @@
       </span>
     </div>
 
+    <!-- Tag Row -->
+    <div class="tag-row" v-if="stockTags.length || true" @click.stop>
+      <TagList
+        :stock-id="stock.id"
+        :stock-name="stock.name"
+        :truncated="false"
+        size="sm"
+        :removable="true"
+        :show-empty-hint="true"
+        empty-text="点击添加标签"
+      />
+    </div>
+
     <!-- Row 2: Market Cap -->
     <div class="metric-row market-cap-row">
       <span class="metric-label">市值</span>
@@ -256,12 +269,16 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { StockData } from '@/types/stock'
+import type { Tag } from '@/types/tag'
 import { useStockStore } from '@/stores/stockStore'
 import { useStockListStore } from '@/stores/stockListStore'
+import { useTagStore } from '@/stores/tagStore'
 import { formatCurrency, formatYi, formatDate, getValuationClass, getValuationLevel } from '@/utils/formatters'
 import { formatPRR, getPrrValuationBgClass, getPrrValuationLevel, getPrrValuationText, getPrrFormulaText, getPrrFormulaDescription, getPrrFormulaWithValues } from '@/utils/prr-formatter'
 import type { PRRFormulaType } from '@/types/prr'
 import TargetPriceConfig from './TargetPriceConfig.vue'
+import TagChip from './TagChip.vue'
+import TagList from './TagList.vue'
 
 
 const showTooltip1 = ref(false)
@@ -273,6 +290,9 @@ const showTargetPriceConfig = ref(false)
 
 const stockStore = useStockStore()
 const stockListStore = useStockListStore()
+const tagStore = useTagStore()
+
+const stockTags = computed(() => tagStore.getStockTags(props.stock.id))
 
 const targetPriceResult = computed(() => stockStore.getTargetPrice(props.stock.id))
 
@@ -1100,6 +1120,55 @@ function onTargetPriceSaved() {
 
 .stock-card:hover .arrow {
   opacity: 1;
+}
+
+/* Tag Row */
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.tag-chips-wrapper {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.tag-overflow {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.tag-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-muted);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.tag-add-btn:hover {
+  color: var(--brand-primary);
+  border-color: var(--brand-primary);
+  background-color: var(--brand-primary-light);
 }
 
 @media (max-width: 640px) {

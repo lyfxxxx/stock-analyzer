@@ -400,6 +400,7 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import type { TargetPriceConfig } from '@/types/stock'
 import type { PRRFormulaType, PRRTargetPriceConfig } from '@/types/prr'
 import { useStockStore } from '@/stores/stockStore'
+import { useTagStore } from '@/stores/tagStore'
 import { calculateTargetPrice, type TargetPriceError } from '@/utils/targetPriceCalculator'
 import { calculatePRRTargetPrice, type PRRTargetPriceError } from '@/utils/prr-target-price'
 import { formatYi } from '@/utils/formatters'
@@ -420,6 +421,7 @@ const emit = defineEmits<{
 
 // Store
 const stockStore = useStockStore()
+const tagStore = useTagStore()
 
 // Mobile detection
 const isMobile = ref(false)
@@ -871,6 +873,14 @@ async function handleConfirm() {
         stockId: props.stockId,
         config
       })
+    }
+    // Sync auto tags after target price config saved
+    if (!tagStore.initialized) {
+      await tagStore.init()
+    }
+    const updatedStock = stockStore.stocks.find(s => s.id === props.stockId)
+    if (updatedStock) {
+      await tagStore.syncAutoTags(updatedStock)
     }
     emit('saved')
     emit('update:visible', false)

@@ -57,6 +57,7 @@
               {{ sortKey === 'pbRatio' && sortOrder === 'desc' ? '↓' : '↑' }}
             </span>
           </th>
+          <th class="col-tag">标签</th>
           <th class="col-target-price">目标价</th>
           <th class="col-number">净现金</th>
           <th class="col-number">FCF</th>
@@ -140,6 +141,18 @@
             <template v-if="stock.pbRatio != null">{{ stock.pbRatio.toFixed(2) }}</template>
             <template v-else><span class="na-text">-</span></template>
           </td>
+          <td class="col-tag" @click.stop>
+            <TagList
+              :stock-id="stock.id"
+              :stock-name="stock.name"
+              :truncated="true"
+              :max-visible="2"
+              size="sm"
+              :removable="false"
+              :show-empty-hint="true"
+              empty-text="-"
+            />
+          </td>
           <td class="col-target-price" @click.stop="editingTargetPriceId = stock.id">
             <template v-if="getTargetPriceForStock(stock.id).error">
               <span class="tp-error">{{ getTargetPriceErrorText(getTargetPriceForStock(stock.id).error) }}</span>
@@ -208,6 +221,9 @@ import { formatPRR, getPrrValuationLevel } from '@/utils/prr-formatter'
 import { useStockListStore } from '@/stores/stockListStore'
 import type { PRRFormulaType, PRRTargetPriceConfig } from '@/types/prr'
 import TargetPriceConfig from './TargetPriceConfig.vue'
+import TagChip from './TagChip.vue'
+import TagList from './TagList.vue'
+import { useTagStore } from '@/stores/tagStore'
 
 const props = defineProps<{
   stocks: StockData[]
@@ -335,6 +351,7 @@ function getPrrTextClass(stock: StockData): string {
 }
 
 const stockListStore = useStockListStore()
+const tagStore = useTagStore()
 const editingTargetPriceId = ref<string | null>(null)
 
 function getValuationBgClass(value: number | null): string {
@@ -557,6 +574,7 @@ onUnmounted(() => {
 
 .col-number { width: 95px; text-align: left; }
 .col-valuation { width: 100px; text-align: left; }
+.col-tag { width: 180px; text-align: left; }
 .col-date { width: 85px; text-align: left; font-size: 12px; }
 
 /* Name cell */

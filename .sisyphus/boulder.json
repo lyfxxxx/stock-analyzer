@@ -1,23 +1,59 @@
 {
-  "active_plan": "D:\\workspace\\stock-project\\stock-analyzer\\.sisyphus\\plans\\prr-valuation.md",
-  "started_at": "2026-04-25T10:21:57.618Z",
+  "active_plan": "D:\\workspace\\stock-project\\stock-analyzer\\.sisyphus\\plans\\tag-system.md",
+  "started_at": "2026-05-16T07:08:45.673Z",
   "session_ids": [
-    "ses_23d3c9f72ffeoUQ1atRk1DiGya"
+    "ses_1d0b28057ffeC7H7iIe4qVXkY2"
   ],
   "session_origins": {
-    "ses_23d3c9f72ffeoUQ1atRk1DiGya": "direct"
+    "ses_1d0b28057ffeC7H7iIe4qVXkY2": "direct"
   },
-  "plan_name": "prr-valuation",
+  "plan_name": "tag-system",
   "agent": "atlas",
   "task_sessions": {
-    "final-wave:f1": {
-      "task_key": "final-wave:f1",
-      "task_label": "F1",
-      "task_title": "**Plan Compliance Audit** — `oracle`",
-      "session_id": "ses_23b6a3108ffeUGr1ihzhQcZg4U",
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "标签类型定义",
+      "session_id": "ses_1d05f7c48ffeOUny3ic1PQEpwc",
       "agent": "Sisyphus-Junior",
       "category": "quick",
-      "updated_at": "2026-04-25T12:22:20.769Z"
+      "updated_at": "2026-05-16T07:14:39.946Z"
+    },
+    "todo:3": {
+      "task_key": "todo:3",
+      "task_label": "3",
+      "task_title": "TagStore 核心 CRUD",
+      "session_id": "ses_1d0569a22ffemI3z6oMfQRxJ3o",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-16T07:27:38.337Z"
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "默认标签初始化 + 自动标签计算引擎",
+      "session_id": "ses_1d04f5ce2ffe7qw3ucZqsPSV28",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-16T07:40:25.607Z"
+    },
+    "todo:6": {
+      "task_key": "todo:6",
+      "task_label": "6",
+      "task_title": "TagChip 标签芯片组件",
+      "session_id": "ses_1d043f8b4ffepm6aGgB8ecV3ro",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-05-16T07:45:01.150Z"
+    },
+    "todo:13": {
+      "task_key": "todo:13",
+      "task_label": "13",
+      "task_title": "StockCard 集成标签展示",
+      "session_id": "ses_1d034b3d8ffeBz8AVjmgKlLnPX",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-05-16T08:05:35.733Z"
     }
   }
 }

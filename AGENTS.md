@@ -51,6 +51,9 @@ npm run lint:fix     # 自动修复 ESLint 问题
 - [Vue + Pinia](docs/references/vue-pinia-reference.md)
 - [Vite + ECharts](docs/references/vite-echarts-reference.md)
 
+## 本地开发
+请优先访问localhost:5173，如果服务没有启动再启动开发服务器
+
 ## 关键路径
 - 源码: `src/` | 类型: `src/types/` | 状态管理: `src/stores/`
 - API: `src/api/` | 工具: `src/utils/` | 测试: `src/**/__tests__/`
@@ -68,6 +71,7 @@ npm run lint:fix     # 自动修复 ESLint 问题
 | 财务指标 | `src/api/financialIndicatorsA.ts`、`src/api/financialIndicatorsHK.ts` | ROE/ROA/PB/分红率 |
 | 主题切换 | `src/composables/useTheme.ts` | 浅色/深色/跟随系统 |
 | Excel 解析 | `src/composables/useExcelParser.ts` | 手动上传模式 |
+| 标签系统 | `src/stores/tagStore.ts`、`src/components/TagManager.vue` | 自动标签+手动标签+筛选+股票池 |
 
 ## 关键规则
 1. **禁止 `console.log`** — 使用 `src/utils/logger.ts` 结构化日志（debug/info/warn/error）
@@ -76,3 +80,4 @@ npm run lint:fix     # 自动修复 ESLint 问题
 4. **依赖方向** — Views → Stores → API/Utils/DB（不可反向）
 5. **所有 API 调用需限流** — 使用 `src/utils/rateLimiter.ts`（每 500ms 1 个请求）
 6. **需要实际验证** — 完成修改后请进行Agent QA，使用 Playwright MCP 或 DevTools MCP 回测实际场景
+7. **标签数据流** — Views → TagStore → IndexedDB（tags / stockTags / tagPools）

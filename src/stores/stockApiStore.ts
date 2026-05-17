@@ -441,7 +441,9 @@ export const useStockApiStore = defineStore('stockApi', () => {
           targetPriceConfig: {
             enabled: true,
             valuationType: 1 as const,
-            targetValuation: 10
+            targetValuation: 10,
+            buyTargetValuation: 10,
+            sellTargetValuation: 20
           } as TargetPriceConfig
         }),
         // PRR fields
@@ -463,6 +465,18 @@ export const useStockApiStore = defineStore('stockApi', () => {
       // 如果需要自动加载数据（单股票更新时），否则由调用者控制
       if (loadAfterUpdate) {
         await list.loadStocks()
+      }
+
+      // 同步自动标签（估值变化后自动标签可能改变）
+      try {
+        const { useTagStore } = await import('./tagStore')
+        const tagStore = useTagStore()
+        if (!tagStore.initialized) {
+          await tagStore.init()
+        }
+        await tagStore.syncAutoTags(updatedStock)
+      } catch (tagErr) {
+        logger.warn('stockApiStore', 'Failed to sync auto tags', { stockId: id, error: tagErr })
       }
 
       return updatedStock
@@ -534,6 +548,23 @@ export const useStockApiStore = defineStore('stockApi', () => {
 
     // 重新加载所有股票数据（只在最后加载一次）
     await list.loadStocks()
+
+    // 批量同步自动标签
+    try {
+      const { useTagStore } = await import('./tagStore')
+      const tagStore = useTagStore()
+      if (!tagStore.initialized) {
+        await tagStore.init()
+      }
+      const allStocks = list.stocks
+      for (const stock of allStocks) {
+        if (ids.includes(stock.id)) {
+          await tagStore.syncAutoTags(stock)
+        }
+      }
+    } catch (tagErr) {
+      logger.warn('stockApiStore', 'Failed to batch sync auto tags', { error: tagErr })
+    }
 
     // 清除进度
     ui.updateProgress = { updated: 0, total: 0 }
