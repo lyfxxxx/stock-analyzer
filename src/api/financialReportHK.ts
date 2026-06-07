@@ -629,8 +629,9 @@ export async function fetchHKStockFinancialReport(
       const income = incomeByYear.get(year)
       const cf = cashFlowByYear.get(year)
 
-      // 至少要有利润表，否则跳过该年份
-      if (!income) {
+      // 至少要有利润表和资产负债表，否则跳过该年份
+      // Q1/H1 reports may appear in income but not in balance sheet yet
+      if (!income || !balance) {
         continue
       }
 

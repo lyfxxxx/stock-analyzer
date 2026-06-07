@@ -59,14 +59,24 @@ function updateChart() {
 
   const colors = getThemeColors()
 
-  // Sort data by year
+  // Sort data by year, then deduplicate: keep only one entry per year.
+  // Multiple entries per year come from quarterly financial reports.
+  // For each year, keep the last entry (most recent quarter / annual data)
+  // to avoid showing duplicate bars with inconsistent ROE values.
   const sortedData = props.yearlyData.map(d => ({ ...d })).sort((a, b) => a.year - b.year)
+
+  // Deduplicate by year: keep last entry per year
+  const yearMap = new Map<number, typeof sortedData[number]>()
+  for (const entry of sortedData) {
+    yearMap.set(entry.year, entry)
+  }
+  const dedupedData = Array.from(yearMap.values()).sort((a, b) => a.year - b.year)
 
   // Apply forecastRoe to the latest year's data if provided (estimated full-year ROE from partial report)
   // This replaces the partial-year value with the projected full-year estimate at the SAME year
-  if (props.forecastRoe != null && sortedData.length > 0) {
-    const lastIdx = sortedData.length - 1
-    const lastItem = sortedData[lastIdx]
+  if (props.forecastRoe != null && dedupedData.length > 0) {
+    const lastIdx = dedupedData.length - 1
+    const lastItem = dedupedData[lastIdx]
     if (lastItem) {
       lastItem.roe = props.forecastRoe
       lastItem.isProjected = true
@@ -75,9 +85,9 @@ function updateChart() {
   // NOTE: We do NOT predict future years. The forecastRoe represents the current year's
   // estimated full-year ROE, not a future year's prediction.
 
-  // Build chart data from deep-copied sorted data
+  // Build chart data from deduplicated data
   interface ChartItem { year: number; roe: number | null | undefined; isProjected: boolean }
-  const chartData: ChartItem[] = sortedData.map(d => ({
+  const chartData: ChartItem[] = dedupedData.map(d => ({
     year: d.year,
     roe: d.roe,
     isProjected: d.isProjected ?? false

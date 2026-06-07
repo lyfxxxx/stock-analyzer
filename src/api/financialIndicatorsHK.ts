@@ -415,8 +415,9 @@ export async function fetchHKFinancialIndicators(
     (a, b) => new Date(b.REPORT_DATE).getTime() - new Date(a.REPORT_DATE).getTime()
   )
 
-  // Current (most recent) values
-  const latest = sortedData[0]
+  // Current (most recent) values - skip entries with null ROE/ROA
+  // Some stocks (e.g. 00551 裕元集团) have Q1 reports with null ROE before annual data
+  const latest = sortedData.find(d => d.ROE_AVG != null || d.ROA != null)
   if (!latest) {
     return {
       current: {

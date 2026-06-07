@@ -184,15 +184,38 @@ export const useStockApiStore = defineStore('stockApi', () => {
           prrIndicators.dividendHistory = indicatorResult.dividendHistory
 
           // Build yearly indicators from Dupont data
+          // Deduplicate by year: keep the latest report per year (prefer annual over quarterly)
+          // For non-annual reports, project the ROE to full-year estimate
           if (indicatorResult.roeData.length > 0) {
-            prrIndicators.yearlyIndicators = indicatorResult.roeData
-              .map(d => ({
-                year: new Date(d.reportDate).getFullYear(),
-                roe: d.roe,
-                roa: d.roa,
-                dividendPayoutRatio: null as number | null
-              }))
-              .filter(d => d.roe !== null)
+            const yearlyEntries = indicatorResult.roeData.map(d => ({
+              year: new Date(d.reportDate).getFullYear(),
+              reportDate: d.reportDate,
+              roe: d.roe,
+              roa: d.roa,
+            })).filter(d => d.roe !== null)
+
+            // Deduplicate by year: keep latest report per year
+            const yearMap = new Map<number, typeof yearlyEntries[number]>()
+            for (const entry of yearlyEntries) {
+              const existing = yearMap.get(entry.year)
+              if (!existing || entry.reportDate > existing.reportDate) {
+                yearMap.set(entry.year, entry)
+              }
+            }
+
+            // Build final indicators, projecting non-annual ROE values
+            prrIndicators.yearlyIndicators = Array.from(yearMap.values())
+              .sort((a, b) => a.year - b.year)
+              .map(d => {
+                const reportType = getReportType(d.reportDate)
+                const isAnnual = reportType === 'annual'
+                return {
+                  year: d.year,
+                  roe: isAnnual ? d.roe : d.roe * getSimpleMultiplier(reportType),
+                  roa: isAnnual ? d.roa : (d.roa ?? 0) * getSimpleMultiplier(reportType),
+                  dividendPayoutRatio: null as number | null,
+                }
+              })
           }
         } else {
           // HK market
