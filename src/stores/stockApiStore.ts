@@ -192,7 +192,7 @@ export const useStockApiStore = defineStore('stockApi', () => {
               reportDate: d.reportDate,
               roe: d.roe,
               roa: d.roa,
-            })).filter(d => d.roe !== null)
+            })).filter((d): d is typeof d & { roe: number } => d.roe !== null)
 
             // Deduplicate by year: keep latest report per year
             const yearMap = new Map<number, typeof yearlyEntries[number]>()
